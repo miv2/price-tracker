@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tracker.history import group_by_item, load_history, record_snapshot
+import pytest
+
+from tracker.history import HistoryError, group_by_item, load_history, record_snapshot
 from tracker.models import Item
 
 
@@ -70,3 +72,16 @@ def test_group_by_item_sorts_and_dedupes_dates():
 
 def test_missing_history_returns_empty(tmp_path: Path):
     assert load_history(tmp_path / "nope.csv") == []
+
+
+@pytest.mark.parametrize("content", [
+    "wrong,header\n2026-11-13,A,B,1000\n",
+    "date,category,name,sale_price\n2026-11-13,A,B,not-a-price\n",
+    "date,category,name,sale_price\n2026-11-13,A,B\n",
+])
+def test_corrupt_history_is_never_replaced(tmp_path: Path, content: str):
+    path = tmp_path / "history.csv"
+    path.write_text(content, encoding="utf-8")
+    with pytest.raises(HistoryError):
+        record_snapshot(path, "2026-11-14", [item("이벤트", "A", 900)])
+    assert path.read_text(encoding="utf-8") == content

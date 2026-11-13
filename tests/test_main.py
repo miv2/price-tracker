@@ -198,3 +198,72 @@ def test_missing_offline_file_returns_error(tmp_path: Path):
         ["--root", str(project), "--offline-html", str(tmp_path / "nope.html")]
     ) == 1
     assert not (project / "prices.json").exists()
+
+
+def test_excluded_items_cannot_hide_drop_in_tracked_items(tmp_path: Path):
+    project = setup_project(tmp_path)
+    initial = [("추적", f"A{i}", 10_000, 20_000) for i in range(4)]
+    page1 = tmp_path / "day1.html"
+    page1.write_text(make_page(initial), encoding="utf-8")
+    assert run(project, page1, "2026-11-13") == 0
+    before = (project / "prices.json").read_bytes()
+
+    config_path = project / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["exclude_keywords"] = ["제외"]
+    config_path.write_text(json.dumps(config, ensure_ascii=False), encoding="utf-8")
+    page2 = tmp_path / "day2.html"
+    page2.write_text(make_page([initial[0]] + [
+        ("제외", f"B{i}", 10_000, 20_000) for i in range(3)
+    ]), encoding="utf-8")
+
+    assert run(project, page2, "2026-11-14") == 1
+    assert (project / "prices.json").read_bytes() == before
+
+
+def test_same_day_rerun_replaces_change_summary(tmp_path: Path):
+    project = setup_project(tmp_path)
+    page = tmp_path / "page.html"
+    page.write_text(make_page(FIRST), encoding="utf-8")
+    assert run(project, page, "2026-11-13") == 0
+
+    page.write_text(make_page(SECOND), encoding="utf-8")
+    assert run(project, page, "2026-11-14") == 0
+    later = [(category, name, 24_000 if name == "피코토닝 1회 체험가" else sale, regular)
+             for category, name, sale, regular in SECOND]
+    page.write_text(make_page(later), encoding="utf-8")
+    assert run(project, page, "2026-11-14") == 0
+
+    changes = (project / "CHANGES.md").read_text(encoding="utf-8")
+    assert changes.count("## 2026-11-14") == 1
+    assert "29,000원 → 24,000원" in changes
+    assert "29,000원 → 25,000원" not in changes
+    assert "신규:" in changes and "종료:" in changes
+    history = (project / "history.csv").read_text(encoding="utf-8-sig")
+    assert "2026-11-14,첫방문 이벤트,피코토닝 1회 체험가,24000" in history
+
+
+def test_same_day_revert_removes_change_summary(tmp_path: Path):
+    project = setup_project(tmp_path)
+    page = tmp_path / "page.html"
+    page.write_text(make_page(FIRST), encoding="utf-8")
+    assert run(project, page, "2026-11-13") == 0
+    changed = [(category, name, 25_000 if name == "피코토닝 1회 체험가" else sale, regular)
+               for category, name, sale, regular in FIRST]
+    page.write_text(make_page(changed), encoding="utf-8")
+    assert run(project, page, "2026-11-14") == 0
+    page.write_text(make_page(FIRST), encoding="utf-8")
+    assert run(project, page, "2026-11-14") == 0
+    assert "## 2026-11-14" not in (project / "CHANGES.md").read_text(encoding="utf-8")
+
+
+def test_corrupt_history_does_not_update_prices(tmp_path: Path):
+    project = setup_project(tmp_path)
+    page = tmp_path / "page.html"
+    page.write_text(make_page(FIRST), encoding="utf-8")
+    assert run(project, page, "2026-11-13") == 0
+    prices_before = (project / "prices.json").read_bytes()
+    (project / "history.csv").write_text("broken,header\n", encoding="utf-8")
+    page.write_text(make_page(SECOND), encoding="utf-8")
+    assert run(project, page, "2026-11-14") == 1
+    assert (project / "prices.json").read_bytes() == prices_before

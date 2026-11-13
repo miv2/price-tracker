@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import math
 import sys
 from dataclasses import dataclass
 from datetime import datetime
@@ -12,10 +13,10 @@ from pathlib import Path
 from .compare import ChangeSet, detect_changes
 from .config import Config, ConfigError, load_config
 from .graph import write_graph
-from .history import load_history, record_snapshot
+from .history import HistoryError, load_history, record_snapshot
 from .models import Item
 from .prices import PricesError, load_prices, save_prices
-from .report import build_entry, ensure_changes_file, prepend_entry
+from .report import build_entry, set_date_entry
 from .scrape import (
     ScrapeError,
     fetch_html,
@@ -66,7 +67,7 @@ def validate_snapshot(items: list[Item], previous: dict[tuple[str, str], Item] |
         return
 
     previous_count = len(previous)
-    minimum = max(1, int(previous_count * config.min_items_ratio))
+    minimum = max(1, math.ceil(previous_count * config.min_items_ratio))
     if len(items) < minimum:
         raise DataError(
             f"수집 건수가 {previous_count}건에서 {len(items)}건으로 급감했습니다 "
@@ -195,9 +196,27 @@ def run(args: argparse.Namespace) -> int:
     previous = load_prices(paths.prices)
     first_run = previous is None
     if previous is not None:
-        validate_snapshot(parsed.items, previous, config)
+        eligible_previous = {
+            key: item for key, item in previous.items()
+            if not matches_exclude(item.category, item.name, config.exclude_keywords)
+        }
+        validate_snapshot(items, eligible_previous, config)
+
+    history_rows = load_history(paths.history)
+    same_day = any(row["date"] == date for row in history_rows)
 
     changes = detect_changes(list(previous.values()) if previous else None, items)
+    if same_day:
+        prior_dates = [row["date"] for row in history_rows if row["date"] < date]
+        if prior_dates:
+            prior_date = max(prior_dates)
+            prior_items = [
+                Item(row["category"], row["name"], None, row["sale_price"])
+                for row in history_rows if row["date"] == prior_date
+            ]
+            changes = detect_changes(prior_items, items)
+        else:
+            changes = ChangeSet()
     if config.exclude_keywords:
         # 제외 설정을 바꿨을 때 기존 항목이 '종료'로 잘못 기록되지 않게 한다.
         changes.removed = [
@@ -225,11 +244,13 @@ def run(args: argparse.Namespace) -> int:
     )
 
     history_changed = record_snapshot(paths.history, date, snapshot)
-    ensure_changes_file(paths.changes)
-    if not first_run and not changes.is_empty:
-        entry = build_entry(changes, date, bulk_threshold=config.bulk_change_threshold)
-        prepend_entry(paths.changes, entry)
-        log.info("CHANGES.md에 변동 요약을 추가했습니다.")
+    entry = (
+        build_entry(changes, date, bulk_threshold=config.bulk_change_threshold)
+        if not first_run and not changes.is_empty else None
+    )
+    set_date_entry(paths.changes, date, entry)
+    if entry is not None:
+        log.info("CHANGES.md의 %s 변동 요약을 갱신했습니다.", date)
 
     write_graph(
         paths.index,
@@ -255,7 +276,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     try:
         return run(args)
-    except (ConfigError, ScrapeError, PricesError, DataError) as exc:
+    except (ConfigError, ScrapeError, PricesError, HistoryError, DataError) as exc:
         log.error("%s", exc)
         return 1
     except Exception:  # noqa: BLE001 - Actions에서 실패로 표시되도록 마지막 방어선

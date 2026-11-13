@@ -5,12 +5,17 @@ from __future__ import annotations
 import csv
 import io
 from collections import defaultdict
+from datetime import date as calendar_date
 from pathlib import Path
 
 from .models import Item
 from .util import atomic_write_text
 
 FIELDNAMES = ("date", "category", "name", "sale_price")
+
+
+class HistoryError(Exception):
+    """기존 이력을 안전하게 읽을 수 없을 때 발생한다."""
 
 
 def load_history(path: Path) -> list[dict]:
@@ -21,22 +26,28 @@ def load_history(path: Path) -> list[dict]:
     rows: list[dict] = []
     try:
         with path.open("r", encoding="utf-8-sig", newline="") as handle:
-            reader = csv.DictReader(handle)
-            for raw in reader:
+            reader = csv.DictReader(handle, strict=True)
+            if tuple(reader.fieldnames or ()) != FIELDNAMES:
+                raise HistoryError(f"history.csv의 열 구성이 올바르지 않습니다: {path}")
+            for line_number, raw in enumerate(reader, start=2):
                 try:
-                    value = int(str(raw.get("sale_price", "")).replace(",", "").strip())
-                except (TypeError, ValueError):
-                    continue
-                date = (raw.get("date") or "").strip()
-                category = (raw.get("category") or "").strip()
-                name = (raw.get("name") or "").strip()
-                if not date or not name:
-                    continue
+                    value = int(raw["sale_price"].replace(",", "").strip())
+                    if value < 0:
+                        raise ValueError("negative price")
+                    date = raw["date"].strip()
+                    if calendar_date.fromisoformat(date).isoformat() != date:
+                        raise ValueError("noncanonical date")
+                    category = raw["category"].strip()
+                    name = raw["name"].strip()
+                    if not name or None in raw:
+                        raise ValueError("missing or extra field")
+                except (AttributeError, KeyError, TypeError, ValueError) as exc:
+                    raise HistoryError(f"history.csv의 {line_number}행이 올바르지 않습니다: {path}") from exc
                 rows.append(
                     {"date": date, "category": category, "name": name, "sale_price": value}
                 )
-    except OSError:
-        return []
+    except (OSError, UnicodeError, csv.Error) as exc:
+        raise HistoryError(f"history.csv를 읽지 못했습니다: {path} ({exc})") from exc
 
     rows.sort(key=lambda row: (row["date"], row["category"], row["name"]))
     return rows

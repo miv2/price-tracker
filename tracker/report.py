@@ -130,3 +130,17 @@ def prepend_entry(path: Path, entry: str) -> None:
         rest = text[marker + 1 :]
         new_text = head + "\n\n" + entry + "\n" + rest
     atomic_write_text(path, new_text.rstrip() + "\n")
+
+
+def set_date_entry(path: Path, date: str, entry: str | None) -> None:
+    """날짜별 요약을 교체한다. 변동이 사라지면 해당 날짜의 요약을 지운다."""
+    ensure_changes_file(path)
+    original = path.read_text(encoding="utf-8")
+    parts = re.split(r"(?=^## \d{4}-\d{2}-\d{2} \()", original, flags=re.MULTILINE)
+    header = parts[0].rstrip()
+    sections = [part.strip() for part in parts[1:] if not part.startswith(f"## {date} (")]
+    if entry is not None:
+        sections.insert(0, entry.strip())
+    updated = header + "\n\n" + ("\n\n".join(sections) + "\n" if sections else "")
+    if updated != original:
+        atomic_write_text(path, updated)
