@@ -5,6 +5,15 @@ on:
     # 매일 오전 10시(KST) = 01:00 UTC
     - cron: "0 1 * * *"
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    # 봇이 생성 파일만 커밋할 때는 다시 실행하지 않는다(무한 반복 방지).
+    paths-ignore:
+      - prices.json
+      - history.csv
+      - CHANGES.md
+      - index.html
 
 permissions:
   contents: write
