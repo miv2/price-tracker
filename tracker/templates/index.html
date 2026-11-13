@@ -22,6 +22,7 @@
     --down: #c83368;
     --flat: #938b90;
     --shadow: 0 8px 24px rgba(61, 31, 43, .045);
+    --teal: #19aeb6;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -51,34 +52,37 @@
   }
   a { color: var(--accent); }
   .wrap { max-width: 1500px; margin: 0 auto; padding: 0 28px; }
+  .site-strip { padding: 7px 14px; background: #19191b; color: #e8e8e8; text-align: center; font-size: 10px; font-weight: 700; letter-spacing: .18em; }
+  .site-strip strong { color: #38c3c9; }
   header.hero {
-    background: radial-gradient(circle at 88% 16%, rgba(255, 215, 229, .55), transparent 33%),
-      linear-gradient(135deg, #fff 0%, #fff7f9 100%);
+    background: var(--panel);
     border-bottom: 1px solid var(--line);
     color: var(--text);
-    padding: 25px 0 42px;
+    padding: 0 0 36px;
   }
   @media (prefers-color-scheme: dark) {
-    header.hero { background: radial-gradient(circle at 88% 16%, rgba(146, 46, 83, .2), transparent 38%), #211b1f; }
+    header.hero { background: var(--panel); }
   }
-  .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 54px; }
-  .brand { color: var(--text); font-size: 16px; font-weight: 800; letter-spacing: -.045em; }
+  .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 30px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+  .brand { color: var(--text); font-size: 27px; font-weight: 900; letter-spacing: -.065em; line-height: 1; }
+  .brand .amp { color: var(--teal); }
+  .brand small { margin-left: 10px; font-size: 13px; font-weight: 700; letter-spacing: -.03em; vertical-align: 3px; }
   .hero-note { color: var(--muted); font-size: 12px; font-weight: 600; }
-  .hero-note::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
+  .hero-note::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--teal); vertical-align: 1px; }
   .eyebrow {
-    margin: 0 0 14px;
-    color: var(--accent);
-    font-size: 12px;
-    font-weight: 750;
-    letter-spacing: .18em;
+    margin: 0 0 3px;
+    color: var(--text);
+    font-size: clamp(27px, 3vw, 40px);
+    font-weight: 850;
+    letter-spacing: -.025em;
   }
-  h1 { margin: 0; font-size: clamp(32px, 4.5vw, 52px); line-height: 1.16; letter-spacing: -.06em; }
-  .sub { max-width: 640px; margin: 16px 0 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
+  h1 { margin: 0; font-size: clamp(20px, 2vw, 27px); line-height: 1.25; letter-spacing: -.055em; }
+  .sub { max-width: 640px; margin: 10px 0 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
   .stats {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0;
-    margin-top: 42px;
+    margin-top: 30px;
     border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
   }
@@ -431,7 +435,7 @@
   .points tbody td { padding: 7px 12px; }
   .points-scroll { max-height: 210px; overflow: auto; }
   @media (max-width: 720px) {
-    header.hero { padding: 18px 0 28px; }
+    header.hero { padding: 0 0 28px; }
     .wrap { padding: 0 14px; }
     .event-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .event-banner { height: 142px; }
@@ -440,9 +444,12 @@
     .event-sale-price { font-size: 18px; }
     .event-list-price { font-size: 12px; }
     .event-name { font-size: 12px; margin-top: 10px; }
-    .hero-top { margin-bottom: 34px; }
+    .hero-top { margin-bottom: 25px; padding: 17px 0; }
+    .brand { font-size: 22px; }
+    .brand small { font-size: 11px; margin-left: 5px; vertical-align: 2px; }
     .hero-note { font-size: 11px; }
-    h1 { font-size: 32px; }
+    .eyebrow { font-size: 27px; }
+    h1 { font-size: 21px; }
     .sub { font-size: 13px; margin-top: 10px; }
     .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin-top: 28px; }
     .stat { padding: 12px 8px 12px 0; }
@@ -663,9 +670,10 @@
 </style>
 </head>
 <body>
+<div class="site-strip">YOU<span>&amp;</span>I <strong>SUWON</strong> · EVENT PRICE TRACKER</div>
 <header class="hero">
   <div class="wrap">
-    <div class="hero-top"><span class="brand">유앤아이의원 수원점</span><span class="hero-note">이벤트 가격 기록</span></div>
+    <div class="hero-top"><span class="brand">YOU<span class="amp">&amp;</span>I <small>유앤아이의원 수원점</small></span><span class="hero-note">이벤트 가격 기록</span></div>
     <p class="eyebrow">LIMITED EVENT</p>
     <h1>수원점 이벤트 가격</h1>
     <p class="sub">공개된 이벤트 할인가를 매일 기록합니다. 시술을 선택하면 날짜별 가격 변화를 확인할 수 있습니다.</p>
@@ -1243,8 +1251,8 @@ const DATA = __PAYLOAD__;
     const banner = document.createElement("div");
     banner.className = "event-banner";
     let bannerFile = "";
-    if (category.includes("첫방문")) bannerFile = "assets/first-visit-banner.png";
-    else if (category.includes("이달의 단독")) bannerFile = "assets/monthly-banner.png";
+    if (category.includes("첫방문")) bannerFile = "assets/first-visit-banner.jpg";
+    else if (category.includes("이달의 단독")) bannerFile = "assets/monthly-banner.jpg";
     if (bannerFile) {
       const img = document.createElement("img");
       img.src = bannerFile;
