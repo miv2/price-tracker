@@ -2,8 +2,10 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#3b5bdb">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2b3a8f">
 <link rel="icon" href="data:,">
 <title>피부과 가격 추적기 · 유앤아이의원 수원점</title>
 <style>
@@ -103,18 +105,39 @@
     border: 1px solid var(--line);
     border-radius: 14px;
     box-shadow: var(--shadow);
-    padding: 16px 18px;
+    padding: 14px 16px;
     margin-bottom: 16px;
   }
-  .recent-head {
+  .recent details { display: block; }
+  .recent-summary {
     display: flex;
     flex-wrap: wrap;
     gap: 8px 16px;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
   }
-  .recent-head h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
-  .recent-head p { margin: 3px 0 0; }
+  .recent-summary::-webkit-details-marker { display: none; }
+  .recent-head-left h2 {
+    margin: 0;
+    font-size: 15px;
+    letter-spacing: -.01em;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .recent-head-left h2::after {
+    content: "▾";
+    font-size: 11px;
+    color: var(--muted);
+    transition: transform 0.2s ease;
+  }
+  details[open] .recent-head-left h2::after {
+    transform: rotate(180deg);
+  }
+  .recent-head-left p { margin: 2px 0 0; }
   .recent-counts { display: flex; flex-wrap: wrap; gap: 6px; }
   .recent-counts .count {
     padding: 3px 9px;
@@ -190,12 +213,22 @@
     border-radius: 10px;
     padding: 10px 12px;
     font: inherit;
-    font-size: 14px;
+    font-size: 16px;
     outline: none;
+    -webkit-appearance: none;
+    appearance: none;
   }
   input[type="search"] { padding-left: 38px; }
   input[type="search"]:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-  select { width: auto; min-width: 132px; cursor: pointer; }
+  select {
+    width: auto;
+    min-width: 132px;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 11.5l-5-5h10l-5 5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+  }
   .toggle {
     border: 1px solid var(--line);
     border-radius: 10px;
@@ -206,6 +239,7 @@
     font-size: 14px;
     white-space: nowrap;
     cursor: pointer;
+    touch-action: manipulation;
   }
   .toggle:hover { color: var(--text); border-color: var(--muted); }
   .toggle.on { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -329,23 +363,208 @@
   .points tbody td { padding: 7px 12px; }
   .points-scroll { max-height: 210px; overflow: auto; }
   @media (max-width: 720px) {
-    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .result-count { margin-left: 0; width: 100%; }
-    thead th, tbody td { padding: 10px 10px; }
-    td.spark { width: 88px; }
-    svg.spark { width: 76px; }
-    .chip { max-width: 110px; }
-    dialog { padding: 16px; }
-    .recent { padding: 14px; }
+    header.hero { padding: 22px 0 18px; }
+    .wrap { padding: 0 14px; }
+    h1 { font-size: 22px; }
+    .sub { font-size: 13px; margin-top: 6px; }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+    .stat { padding: 9px 12px; }
+    .stat strong { font-size: 17px; }
+    .stat span { font-size: 11px; }
+
+    main { padding: 14px 0 40px; }
+    .toolbar { gap: 8px; margin-bottom: 12px; }
+    .search { flex: 1 1 100%; }
+    .toolbar > select, .toolbar > .toggle {
+      flex: 1 1 calc(50% - 4px);
+      min-width: 0;
+      font-size: 13px;
+      padding: 9px 10px;
+      height: 40px;
+    }
+    .result-count { width: 100%; margin-left: 0; font-size: 12px; text-align: right; }
+
+    /* 모바일 테이블을 카드형 리스트 레이아웃으로 변환 */
+    .table-wrap {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      overflow: visible;
+    }
+    table { display: block; width: 100%; }
+    thead { display: none; }
+    tbody { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+    tbody tr.row {
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 13px 14px;
+      gap: 8px;
+      position: relative;
+    }
+    tbody tr.row:active {
+      background: var(--accent-soft);
+      transform: scale(0.99);
+      transition: transform 0.1s ease;
+    }
+    tbody td {
+      padding: 0;
+      border: none;
+      text-align: left;
+    }
+
+    /* 카드 헤더: 카테고리와 스파크라인을 상단에 배치 */
+    tbody tr.row td:nth-child(1) {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      order: 1;
+    }
+    .chip { max-width: 140px; font-size: 11.5px; padding: 2px 8px; }
+
+    /* 시술명 */
+    tbody tr.row td:nth-child(2) {
+      order: 2;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+
+    /* 현재가와 뱃지 */
+    tbody tr.row td:nth-child(3) {
+      order: 3;
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 18px;
+      margin-top: 2px;
+    }
+    tbody tr.row td:nth-child(3) .badge {
+      font-size: 11px;
+      padding: 2px 6px;
+      margin-left: 0;
+    }
+
+    /* 최근 변동 & 최저/최고 정보 요약줄 */
+    tbody tr.row td:nth-child(4) {
+      order: 4;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12.5px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--line);
+      margin-top: 4px;
+    }
+    tbody tr.row td:nth-child(4)::before {
+      content: "최근 변동";
+      color: var(--muted);
+      font-size: 11.5px;
+    }
+
+    tbody tr.row td:nth-child(5) {
+      order: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+    tbody tr.row td:nth-child(5)::before {
+      content: "역대 최저/최고";
+      color: var(--muted);
+      font-size: 11.5px;
+    }
+
+    /* 스파크라인을 카드 상단 우측으로 이동 */
+    tbody tr.row td.spark {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      width: auto;
+    }
+    svg.spark { width: 84px; height: 24px; }
+
+    /* 다이얼로그 모바일 바텀시트 스타일 */
+    dialog {
+      width: 100vw;
+      max-width: 100vw;
+      margin: auto 0 0 0;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      border-left: none;
+      border-right: none;
+      border-bottom: none;
+      padding: 20px 16px env(safe-area-inset-bottom, 20px);
+      max-height: 88vh;
+    }
+    .dialog-head h2 { font-size: 18px; }
+    .chart-meta { gap: 6px 12px; font-size: 12.5px; }
+    .recent { padding: 12px 14px; }
+    .recent-head-left h2 { font-size: 14px; }
+    .recent-item { padding: 8px 10px; font-size: 12.5px; }
     .recent-item .rcat { display: none; }
-    .toggle, select { font-size: 13px; }
   }
+
   @media (max-width: 480px) {
-    .stats { grid-template-columns: 1fr 1fr; gap: 8px; }
-    .stat strong { font-size: 18px; }
-    .search { flex-basis: 100%; }
-    .toolbar > select { flex: 1 1 calc(50% - 5px); min-width: 0; }
+    .stats { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .toolbar > select, .toolbar > .toggle {
+      flex: 1 1 calc(50% - 4px);
+    }
     .recent-item .kind { min-width: 34px; text-align: center; }
+  }
+
+  /* 더보기 버튼 및 플로팅 맨위로 버튼 */
+  .load-more-wrap {
+    margin: 20px 0 10px;
+    text-align: center;
+  }
+  .load-more-btn {
+    width: 100%;
+    max-width: 420px;
+    padding: 13px 20px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+    color: var(--accent);
+    font: inherit;
+    font-size: 14.5px;
+    font-weight: 600;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .load-more-btn:active {
+    background: var(--accent-soft);
+  }
+  .scroll-top-btn {
+    position: fixed;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 20px;
+    font-weight: bold;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 100;
+    touch-action: manipulation;
+    opacity: 0.92;
+  }
+  .scroll-top-btn:active {
+    background: var(--accent);
+    color: #fff;
   }
 </style>
 </head>
@@ -371,14 +590,16 @@
   </div>
 
   <section class="recent" id="recentPanel" aria-labelledby="recentTitle">
-    <div class="recent-head">
-      <div>
-        <h2 id="recentTitle">최근 변동</h2>
-        <p class="small" id="recentSub">불러오는 중…</p>
-      </div>
-      <div class="recent-counts" id="recentCounts"></div>
-    </div>
-    <ul class="recent-list" id="recentList"></ul>
+    <details id="recentDetails" open>
+      <summary class="recent-summary">
+        <div class="recent-head-left">
+          <h2 id="recentTitle">최근 변동</h2>
+          <p class="small" id="recentSub">불러오는 중…</p>
+        </div>
+        <div class="recent-counts" id="recentCounts"></div>
+      </summary>
+      <ul class="recent-list" id="recentList"></ul>
+    </details>
   </section>
 
   <div class="toolbar">
@@ -400,6 +621,7 @@
     <select id="sortFilter" aria-label="정렬">
       <option value="category">카테고리순</option>
       <option value="recent">최근 변동순</option>
+      <option value="discount-desc">할인율 높은순</option>
       <option value="price-desc">가격 높은순</option>
       <option value="price-asc">가격 낮은순</option>
       <option value="name">이름순</option>
@@ -428,6 +650,10 @@
       <div><button type="button" class="link-btn" id="resetFilters">필터 초기화</button></div>
     </div>
   </div>
+  <div class="load-more-wrap" id="loadMoreWrap" hidden>
+    <button type="button" class="load-more-btn" id="loadMoreBtn">더 보기 (<span id="loadMoreCount">0</span>개 남음)</button>
+  </div>
+  <button type="button" class="scroll-top-btn" id="scrollTopBtn" aria-label="맨 위로 이동" title="맨 위로">↑</button>
 </main>
 
 <footer>
@@ -484,6 +710,9 @@ const DATA = __PAYLOAD__;
   };
   const changedIndexes = new Set((RECENT.items || []).map(function (change) { return change.index; }));
   const state = { q: "", category: "", status: "active", changedOnly: false, sort: "category" };
+  const PAGE_SIZE = 40;
+  let displayLimit = PAGE_SIZE;
+  let currentFilteredList = [];
   let currentItem = null;
   let searchTimer = null;
 
@@ -528,7 +757,12 @@ const DATA = __PAYLOAD__;
     const cutoff = cutoff30();
     const points = item.points.filter(function (p) { return p[0] >= cutoff; });
     if (points.length < 2) return false;
-    return currentPrice(item) <= Math.min.apply(null, points.map(function (p) { return p[1]; }));
+    const prices = points.map(function (p) { return p[1]; });
+    const min = Math.min.apply(null, prices);
+    const max = Math.max.apply(null, prices);
+    // 가격이 한 번도 변하지 않았으면 '최저' 배지를 붙이지 않는다.
+    if (max <= min) return false;
+    return currentPrice(item) <= min;
   }
 
   function discountRate(item) {
@@ -761,6 +995,13 @@ const DATA = __PAYLOAD__;
         if (ca.date !== cb.date) return ca.date < cb.date ? 1 : -1;
         return Math.abs(cb.delta) - Math.abs(ca.delta);
       });
+    } else if (state.sort === "discount-desc") {
+      sorted.sort(function (a, b) {
+        const da = a.discount_rate || discountRate(a) || 0;
+        const db = b.discount_rate || discountRate(b) || 0;
+        if (da !== db) return db - da;
+        return compareName(a, b);
+      });
     } else if (state.sort === "price-desc") {
       sorted.sort(function (a, b) { return currentPrice(b) - currentPrice(a); });
     } else if (state.sort === "price-asc") {
@@ -809,12 +1050,38 @@ const DATA = __PAYLOAD__;
 
     const priceCell = td(won(currentPrice(item)), "num price");
     if (!item.active) priceCell.title = "마지막으로 확인된 가격";
-    if (isLow30(item)) {
+
+    const cur = currentPrice(item);
+    const values = item.points.map(function (p) { return p[1]; });
+    const min = Math.min.apply(null, values);
+    const max = Math.max.apply(null, values);
+    const hasRange = max > min;
+
+    const atl = item.all_time_low !== undefined ? item.all_time_low : min;
+    const isAtl = hasRange && item.points.length >= 2 && cur <= atl;
+
+    if (isAtl) {
+      const atlBadge = document.createElement("span");
+      atlBadge.className = "badge low";
+      atlBadge.textContent = "역대 최저";
+      atlBadge.title = "수집 이래 가장 낮은 가격입니다.";
+      priceCell.appendChild(atlBadge);
+    } else if (isLow30(item)) {
       const lowBadge = document.createElement("span");
       lowBadge.className = "badge low";
       lowBadge.textContent = "30일 최저";
       lowBadge.title = "최근 30일 중 가장 낮은 가격입니다.";
       priceCell.appendChild(lowBadge);
+    }
+
+    const rate = item.discount_rate !== undefined ? item.discount_rate : discountRate(item);
+    if (rate !== null && rate > 0) {
+      const rateBadge = document.createElement("span");
+      rateBadge.className = "badge";
+      rateBadge.textContent = rate + "% 할인";
+      rateBadge.style.color = "var(--down)";
+      rateBadge.style.borderColor = "rgba(47, 158, 68, .3)";
+      priceCell.appendChild(rateBadge);
     }
 
     const change = latestChange(item);
@@ -829,9 +1096,6 @@ const DATA = __PAYLOAD__;
       deltaCell.appendChild(when);
     }
 
-    const values = item.points.map((p) => p[1]);
-    const min = Math.min.apply(null, values);
-    const max = Math.max.apply(null, values);
     const rangeCell = td(fmt(min) + " / " + fmt(max), "num small");
 
     const sparkCell = document.createElement("td");
@@ -855,15 +1119,31 @@ const DATA = __PAYLOAD__;
     return tr;
   }
 
-  function renderTable() {
+  function renderTable(resetPaging) {
+    if (resetPaging !== false) {
+      displayLimit = PAGE_SIZE;
+    }
     const body = $("rows");
     body.textContent = "";
     const fragment = document.createDocumentFragment();
-    const visible = sortItems(items.filter(matches));
-    for (const item of visible) fragment.appendChild(renderRow(item));
+    currentFilteredList = sortItems(items.filter(matches));
+    const pageItems = currentFilteredList.slice(0, displayLimit);
+
+    for (const item of pageItems) fragment.appendChild(renderRow(item));
     body.appendChild(fragment);
-    $("empty").hidden = visible.length > 0;
-    $("count").textContent = fmt(visible.length) + "개 표시 / 전체 " + fmt(items.length) + "개";
+
+    $("empty").hidden = currentFilteredList.length > 0;
+    $("count").textContent = currentFilteredList.length > pageItems.length
+      ? fmt(pageItems.length) + " / " + fmt(currentFilteredList.length) + "개 표시"
+      : fmt(currentFilteredList.length) + "개 표시";
+
+    const loadMoreWrap = $("loadMoreWrap");
+    if (currentFilteredList.length > displayLimit) {
+      loadMoreWrap.hidden = false;
+      $("loadMoreCount").textContent = fmt(currentFilteredList.length - displayLimit);
+    } else {
+      loadMoreWrap.hidden = true;
+    }
   }
 
   function openChart(item) {
@@ -888,8 +1168,20 @@ const DATA = __PAYLOAD__;
     }
     part("현재", won(last[1]));
     if (item.list_price !== undefined && item.list_price !== null) part("정가", won(item.list_price));
-    const rate = discountRate(item);
-    if (rate !== null) part("할인율", rate + "%", "good");
+    const rate = item.discount_rate !== undefined ? item.discount_rate : discountRate(item);
+    if (rate !== null && rate > 0) part("할인율", rate + "%", "good");
+
+    if (item.all_time_low !== undefined) {
+      part("역대 최저", won(item.all_time_low), last[1] <= item.all_time_low && item.points.length >= 2 ? "good" : "");
+    }
+    if (item.avg_price !== undefined && item.points.length > 1) {
+      part("역대 평균", won(item.avg_price));
+      const vsAvg = item.price_vs_avg;
+      if (vsAvg !== undefined && vsAvg !== 0) {
+        part("평균 대비", (vsAvg > 0 ? "+" : "") + vsAvg + "%", vsAvg < 0 ? "good" : "bad");
+      }
+    }
+
     if ((DATA.days || 0) >= 2) {
       const low = min30(item);
       if (low !== null) part("30일 최저", won(low), currentPrice(item) <= low ? "good" : "");
@@ -1032,6 +1324,24 @@ const DATA = __PAYLOAD__;
     $("changedToggle").setAttribute("aria-pressed", "false");
     renderTable();
   }
+
+  $("loadMoreBtn").addEventListener("click", function () {
+    displayLimit += PAGE_SIZE;
+    renderTable(false);
+  });
+
+  const scrollBtn = $("scrollTopBtn");
+  window.addEventListener("scroll", function () {
+    if (window.scrollY > 350) {
+      scrollBtn.style.display = "flex";
+    } else {
+      scrollBtn.style.display = "none";
+    }
+  }, { passive: true });
+
+  scrollBtn.addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
 
   $("q").addEventListener("input", function (event) {
     window.clearTimeout(searchTimer);

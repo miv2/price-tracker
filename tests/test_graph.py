@@ -38,10 +38,15 @@ def test_payload_groups_points_and_marks_ended_items():
     assert items["피코토닝 1회"]["active"] is True
     assert items["피코토닝 1회"]["points"] == [["2026-11-13", 29_000], ["2026-11-14", 25_000]]
     assert items["피코토닝 1회"]["list_price"] == 52_000
+    assert items["피코토닝 1회"]["all_time_low"] == 25_000
+    assert items["피코토닝 1회"]["all_time_high"] == 29_000
+    assert items["피코토닝 1회"]["avg_price"] == 27_000
+    assert items["피코토닝 1회"]["discount_rate"] == 52  # (1 - 25000/52000) * 100 = 51.92 -> 52%
 
     # 이번 스냅샷에 없으면 종료된 항목으로 남는다.
     assert items["특가 A"]["active"] is False
     assert "list_price" not in items["특가 A"]
+    assert items["특가 A"]["all_time_low"] == 89_000
 
 
 def test_recent_changes_compare_last_two_dates():

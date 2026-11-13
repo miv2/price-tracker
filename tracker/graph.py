@@ -118,15 +118,29 @@ def build_payload(
 
     items: list[dict] = []
     for (category, name), points in grouped.items():
+        prices = [price for _, price in points]
+        all_time_low = min(prices)
+        all_time_high = max(prices)
+        avg_price = round(sum(prices) / len(prices))
+        current_price = prices[-1]
+        price_vs_avg = round((current_price - avg_price) / avg_price * 100, 1) if avg_price else 0
+
         entry = {
             "category": category,
             "name": name,
             "active": (category, name) in active,
             "points": [[date, price] for date, price in points],
+            "all_time_low": all_time_low,
+            "all_time_high": all_time_high,
+            "avg_price": avg_price,
+            "price_vs_avg": price_vs_avg,
         }
         current = active.get((category, name))
         if current is not None and current.list_price is not None:
             entry["list_price"] = current.list_price
+            entry["discount_rate"] = round(
+                (1 - current_price / current.list_price) * 100
+            ) if current.list_price > 0 else 0
         items.append(entry)
 
     items.sort(key=lambda entry: (entry["category"], entry["name"]))
