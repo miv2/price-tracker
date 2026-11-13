@@ -9,6 +9,7 @@ venv/
 # 로컬 임시 파일
 _scratch_*
 *.tmp
+/pytest-run-*/
 
 # OS
 .DS_Store
