@@ -12,6 +12,96 @@ from .util import atomic_write_text
 TEMPLATE_PATH = Path(__file__).parent / "templates" / "index.html"
 PAYLOAD_PLACEHOLDER = "__PAYLOAD__"
 
+KIND_ORDER = {"decrease": 0, "increase": 1, "new": 2, "removed": 3}
+
+
+def build_recent_changes(rows: list[dict], items: list[dict]) -> dict:
+    """최근 두 수집일을 비교해 페이지 상단에 보여줄 변동 목록을 만든다.
+
+    ``items``는 정렬된 페이로드 항목 목록이며, 각 변동에는 그 목록에서의 위치를
+    ``index``로 담아 클릭 시 그래프를 바로 열 수 있게 한다. 기록이 하루뿐이면
+    ``baseline``이 참이고 변동 목록은 비운다.
+    """
+    dates = sorted({row["date"] for row in rows})
+    counts = {"decrease": 0, "increase": 0, "new": 0, "removed": 0}
+
+    if not dates:
+        return {
+            "baseline": True,
+            "date": None,
+            "prev_date": None,
+            "counts": counts,
+            "total": 0,
+            "items": [],
+        }
+
+    last_date = dates[-1]
+    if len(dates) < 2:
+        return {
+            "baseline": True,
+            "date": last_date,
+            "prev_date": None,
+            "counts": counts,
+            "total": 0,
+            "items": [],
+        }
+
+    prev_date = dates[-2]
+    prev_prices: dict[tuple[str, str], int] = {}
+    last_prices: dict[tuple[str, str], int] = {}
+    for row in rows:
+        key = (row["category"], row["name"])
+        if row["date"] == prev_date:
+            prev_prices[key] = row["sale_price"]
+        elif row["date"] == last_date:
+            last_prices[key] = row["sale_price"]
+
+    index = {(entry["category"], entry["name"]): i for i, entry in enumerate(items)}
+    changes: list[dict] = []
+    for key in set(prev_prices) | set(last_prices):
+        before = prev_prices.get(key)
+        after = last_prices.get(key)
+        if before == after:
+            continue
+        if before is None:
+            kind = "new"
+        elif after is None:
+            kind = "removed"
+        elif after < before:
+            kind = "decrease"
+        else:
+            kind = "increase"
+        counts[kind] += 1
+        changes.append(
+            {
+                "index": index.get(key, -1),
+                "category": key[0],
+                "name": key[1],
+                "kind": kind,
+                "prev": before,
+                "price": after,
+                "delta": (after - before) if before is not None and after is not None else None,
+            }
+        )
+
+    changes.sort(
+        key=lambda change: (
+            KIND_ORDER[change["kind"]],
+            -(abs(change["delta"]) if change["delta"] is not None else 0),
+            change["category"],
+            change["name"],
+        )
+    )
+
+    return {
+        "baseline": False,
+        "date": last_date,
+        "prev_date": prev_date,
+        "counts": counts,
+        "total": len(changes),
+        "items": changes,
+    }
+
 
 def build_payload(
     rows: list[dict],
@@ -49,6 +139,7 @@ def build_payload(
         "first_date": dates[0] if dates else None,
         "last_date": dates[-1] if dates else None,
         "active_count": sum(1 for entry in items if entry["active"]),
+        "recent": build_recent_changes(rows, items),
         "items": items,
     }
 

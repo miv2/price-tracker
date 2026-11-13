@@ -45,5 +45,6 @@ jobs:
             echo "커밋할 변경 사항이 없습니다."
           else
             git commit -m "chore: 가격 스냅샷 $(date -u +%F)"
+            git pull --rebase --autostash origin main
             git push
           fi

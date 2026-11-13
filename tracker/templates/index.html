@@ -81,6 +81,95 @@
   .stat strong { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
   .stat span { font-size: 12px; opacity: .82; }
   main { padding: 22px 0 60px; }
+  .notice {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    align-items: center;
+    margin-bottom: 14px;
+    padding: 11px 14px;
+    border: 1px solid #ffd8a8;
+    border-radius: 12px;
+    background: #fff4e6;
+    color: #a8480c;
+    font-size: 13.5px;
+  }
+  @media (prefers-color-scheme: dark) {
+    .notice { background: #2a1e12; border-color: #5a3a1c; color: #ffc078; }
+  }
+  .notice a { margin-left: auto; font-weight: 600; white-space: nowrap; }
+  .recent {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+  .recent-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  .recent-head h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+  .recent-head p { margin: 3px 0 0; }
+  .recent-counts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .recent-counts .count {
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .recent-counts .count.zero { opacity: .55; }
+  .recent-counts .count.good { color: var(--down); border-color: rgba(47, 158, 68, .4); background: rgba(47, 158, 68, .1); }
+  .recent-counts .count.bad { color: var(--up); border-color: rgba(232, 89, 12, .4); background: rgba(232, 89, 12, .1); }
+  .recent-list {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+    max-height: 238px;
+    overflow: auto;
+  }
+  .recent-empty { color: var(--muted); font-size: 13px; padding: 8px 2px; }
+  .recent-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .recent-item:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .recent-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .recent-item .kind {
+    flex: none;
+    padding: 1px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .recent-item .kind.good { color: var(--down); border-color: rgba(47, 158, 68, .4); }
+  .recent-item .kind.bad { color: var(--up); border-color: rgba(232, 89, 12, .4); }
+  .recent-item .rcat { flex: none; color: var(--muted); font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .recent-item .rname { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .recent-item .rval { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; }
   .toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -107,6 +196,20 @@
   input[type="search"] { padding-left: 38px; }
   input[type="search"]:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   select { width: auto; min-width: 132px; cursor: pointer; }
+  .toggle {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel);
+    color: var(--muted);
+    padding: 9px 13px;
+    font: inherit;
+    font-size: 14px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .toggle:hover { color: var(--text); border-color: var(--muted); }
+  .toggle.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  @media (prefers-color-scheme: dark) { .toggle.on { color: #0d1117; } }
   .result-count { margin-left: auto; color: var(--muted); font-size: 13px; white-space: nowrap; }
   .table-wrap {
     background: var(--panel);
@@ -161,6 +264,7 @@
     font-weight: 500;
     vertical-align: middle;
   }
+  .badge.low { color: var(--down); border-color: rgba(47, 158, 68, .4); background: rgba(47, 158, 68, .1); }
   .price { font-weight: 650; font-variant-numeric: tabular-nums; }
   .good { color: var(--down); }
   .bad { color: var(--up); }
@@ -170,6 +274,17 @@
   svg.spark { display: block; width: 104px; height: 28px; }
   .empty { padding: 44px 20px; text-align: center; color: var(--muted); }
   .empty strong { display: block; color: var(--text); margin-bottom: 4px; }
+  .link-btn {
+    margin-top: 10px;
+    padding: 4px 6px;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+  }
   footer { color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); padding: 18px 0 40px; }
   footer p { margin: 4px 0; }
   dialog {
@@ -221,6 +336,16 @@
     svg.spark { width: 76px; }
     .chip { max-width: 110px; }
     dialog { padding: 16px; }
+    .recent { padding: 14px; }
+    .recent-item .rcat { display: none; }
+    .toggle, select { font-size: 13px; }
+  }
+  @media (max-width: 480px) {
+    .stats { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat strong { font-size: 18px; }
+    .search { flex-basis: 100%; }
+    .toolbar > select { flex: 1 1 calc(50% - 5px); min-width: 0; }
+    .recent-item .kind { min-width: 34px; text-align: center; }
   }
 </style>
 </head>
@@ -240,6 +365,22 @@
 </header>
 
 <main class="wrap">
+  <div class="notice" id="staleNotice" hidden>
+    <span>마지막 수집이 <b id="staleDays">2</b>일 전입니다. 자동 수집이 지연되고 있을 수 있습니다.</span>
+    <a id="actionsLink" href="https://github.com/" target="_blank" rel="noopener">Actions 상태 보기</a>
+  </div>
+
+  <section class="recent" id="recentPanel" aria-labelledby="recentTitle">
+    <div class="recent-head">
+      <div>
+        <h2 id="recentTitle">최근 변동</h2>
+        <p class="small" id="recentSub">불러오는 중…</p>
+      </div>
+      <div class="recent-counts" id="recentCounts"></div>
+    </div>
+    <ul class="recent-list" id="recentList"></ul>
+  </section>
+
   <div class="toolbar">
     <label class="search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -254,6 +395,14 @@
       <option value="active">판매 중</option>
       <option value="ended">종료</option>
       <option value="all">전체</option>
+    </select>
+    <button type="button" class="toggle" id="changedToggle" aria-pressed="false" title="직전 수집 대비 변동이 있는 시술만 봅니다">변동만</button>
+    <select id="sortFilter" aria-label="정렬">
+      <option value="category">카테고리순</option>
+      <option value="recent">최근 변동순</option>
+      <option value="price-desc">가격 높은순</option>
+      <option value="price-asc">가격 낮은순</option>
+      <option value="name">이름순</option>
     </select>
     <span class="result-count" id="count"></span>
   </div>
@@ -276,6 +425,7 @@
     <div class="empty" id="empty" hidden>
       <strong>조건에 맞는 시술이 없습니다.</strong>
       검색어나 필터를 바꿔 보세요.
+      <div><button type="button" class="link-btn" id="resetFilters">필터 초기화</button></div>
     </div>
   </div>
 </main>
@@ -323,17 +473,21 @@ const DATA = __PAYLOAD__;
   const won = (n) => (n === null || n === undefined ? "—" : fmt(n) + "원");
   const mmdd = (date) => date.slice(5).replace("-", ".");
   const items = Array.isArray(DATA.items) ? DATA.items : [];
-  const state = { q: "", category: "", status: "active" };
+  items.forEach(function (item, index) { item.idx = index; });
+  const RECENT = DATA.recent || {
+    baseline: true,
+    date: DATA.last_date || null,
+    prev_date: null,
+    counts: { decrease: 0, increase: 0, new: 0, removed: 0 },
+    total: 0,
+    items: []
+  };
+  const changedIndexes = new Set((RECENT.items || []).map(function (change) { return change.index; }));
+  const state = { q: "", category: "", status: "active", changedOnly: false, sort: "category" };
   let currentItem = null;
   let searchTimer = null;
 
   const $ = (id) => document.getElementById(id);
-
-  function deltaOf(item) {
-    const p = item.points;
-    if (p.length < 2) return null;
-    return p[p.length - 1][1] - p[p.length - 2][1];
-  }
 
   function overallDelta(item) {
     const p = item.points;
@@ -349,6 +503,38 @@ const DATA = __PAYLOAD__;
       }
     }
     return null;
+  }
+
+  function currentPrice(item) {
+    return item.points[item.points.length - 1][1];
+  }
+
+  function cutoff30() {
+    if (!DATA.last_date) return null;
+    const date = new Date(DATA.last_date + "T00:00:00Z");
+    date.setUTCDate(date.getUTCDate() - 29);
+    return date.toISOString().slice(0, 10);
+  }
+
+  function min30(item) {
+    const cutoff = cutoff30();
+    const points = cutoff ? item.points.filter(function (p) { return p[0] >= cutoff; }) : item.points;
+    if (!points.length) return null;
+    return Math.min.apply(null, points.map(function (p) { return p[1]; }));
+  }
+
+  function isLow30(item) {
+    if (!DATA.last_date || (DATA.days || 0) < 2) return false;
+    const cutoff = cutoff30();
+    const points = item.points.filter(function (p) { return p[0] >= cutoff; });
+    if (points.length < 2) return false;
+    return currentPrice(item) <= Math.min.apply(null, points.map(function (p) { return p[1]; }));
+  }
+
+  function discountRate(item) {
+    if (!item.list_price) return null;
+    const rate = Math.round((1 - currentPrice(item) / item.list_price) * 100);
+    return rate > 0 ? rate : null;
   }
 
   function trendColor(item) {
@@ -415,18 +601,21 @@ const DATA = __PAYLOAD__;
 
   function renderStats() {
     const dates = new Set();
-    let changes = 0;
     for (const item of items) {
       for (const p of item.points) dates.add(p[0]);
-      const last = item.points[item.points.length - 1];
-      const delta = deltaOf(item);
-      // 마지막 수집일에 기록된 항목만 '직전 대비 변동'으로 센다.
-      if (delta !== null && delta !== 0 && DATA.last_date && last[0] === DATA.last_date) changes += 1;
     }
     $("statActive").textContent = fmt(DATA.active_count || 0) + "개";
     $("statDays").textContent = fmt(dates.size) + "일";
     $("statLast").textContent = DATA.last_date ? mmdd(DATA.last_date) : "—";
-    $("statChanges").textContent = fmt(changes) + "건";
+    if (RECENT.baseline) {
+      $("statChanges").textContent = "—";
+      $("statChanges").title = "기준 데이터만 있습니다. 다음 수집부터 변동이 계산됩니다.";
+    } else {
+      const counts = RECENT.counts || {};
+      $("statChanges").textContent = fmt(RECENT.total) + "건";
+      $("statChanges").title = "인하 " + (counts.decrease || 0) + " · 인상 " + (counts.increase || 0) +
+        " · 신규 " + (counts.new || 0) + " · 종료 " + (counts.removed || 0);
+    }
     if (DATA.source_url) $("sourceLink").href = DATA.source_url;
     if (DATA.repo_url) {
       const base = DATA.repo_url.replace(/\/$/, "");
@@ -434,6 +623,101 @@ const DATA = __PAYLOAD__;
       $("historyLink").href = base + "/blob/HEAD/history.csv";
       $("pricesLink").href = base + "/blob/HEAD/prices.json";
     }
+  }
+
+  function renderRecent() {
+    const sub = $("recentSub");
+    const countsBox = $("recentCounts");
+    const list = $("recentList");
+    countsBox.textContent = "";
+    list.textContent = "";
+
+    if (RECENT.baseline) {
+      sub.textContent = RECENT.date
+        ? mmdd(RECENT.date) + " 기준 데이터를 저장했습니다. 다음 수집부터 변동이 표시됩니다."
+        : "아직 수집 기록이 없습니다.";
+      return;
+    }
+
+    sub.textContent = (RECENT.prev_date ? mmdd(RECENT.prev_date) : "직전") + " → " + mmdd(RECENT.date) + " 비교";
+
+    const kinds = [
+      ["decrease", "인하", "good"],
+      ["increase", "인상", "bad"],
+      ["new", "신규", ""],
+      ["removed", "종료", ""]
+    ];
+    for (const entry of kinds) {
+      const count = (RECENT.counts && RECENT.counts[entry[0]]) || 0;
+      const span = document.createElement("span");
+      span.className = "count" + (count ? " " + entry[2] : " zero");
+      span.textContent = entry[1] + " " + fmt(count);
+      countsBox.appendChild(span);
+    }
+
+    if (!RECENT.items.length) {
+      const empty = document.createElement("li");
+      empty.className = "recent-empty";
+      empty.textContent = "직전 수집 대비 변동이 없습니다.";
+      list.appendChild(empty);
+      return;
+    }
+
+    const labels = { decrease: "인하", increase: "인상", new: "신규", removed: "종료" };
+    for (const change of RECENT.items) {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "recent-item";
+
+      const kind = document.createElement("span");
+      kind.className = "kind" + (change.kind === "decrease" ? " good" : change.kind === "increase" ? " bad" : "");
+      kind.textContent = labels[change.kind] || change.kind;
+      btn.appendChild(kind);
+
+      if (change.category) {
+        const cat = document.createElement("span");
+        cat.className = "rcat";
+        cat.textContent = change.category;
+        btn.appendChild(cat);
+      }
+
+      const name = document.createElement("span");
+      name.className = "rname";
+      name.textContent = change.name;
+      btn.appendChild(name);
+
+      const value = document.createElement("span");
+      value.className = "rval" + (change.kind === "decrease" ? " good" : change.kind === "increase" ? " bad" : "");
+      if (change.kind === "new") {
+        value.textContent = won(change.price);
+      } else if (change.kind === "removed") {
+        value.textContent = won(change.prev);
+      } else {
+        const sign = change.delta > 0 ? "+" : "-";
+        value.textContent = sign + fmt(Math.abs(change.delta)) + "원";
+      }
+      btn.appendChild(value);
+
+      btn.addEventListener("click", function () {
+        const target = items[change.index];
+        if (target) openChart(target);
+      });
+      li.appendChild(btn);
+      list.appendChild(li);
+    }
+  }
+
+  function renderStale() {
+    if (!DATA.last_date) return;
+    const last = Date.parse(DATA.last_date + "T00:00:00+09:00");
+    const days = Math.floor((Date.now() - last) / 86400000);
+    if (days < 2) return;
+    $("staleDays").textContent = fmt(days);
+    if (DATA.repo_url) {
+      $("actionsLink").href = DATA.repo_url.replace(/\/$/, "") + "/actions";
+    }
+    $("staleNotice").hidden = false;
   }
 
   function buildCategoryOptions() {
@@ -452,12 +736,43 @@ const DATA = __PAYLOAD__;
   function matches(item) {
     if (state.status === "active" && !item.active) return false;
     if (state.status === "ended" && item.active) return false;
+    if (state.changedOnly && !changedIndexes.has(item.idx)) return false;
     if (state.category && item.category !== state.category) return false;
     if (state.q) {
       const q = state.q.toLowerCase();
       if (!item.name.toLowerCase().includes(q) && !item.category.toLowerCase().includes(q)) return false;
     }
     return true;
+  }
+
+  function compareName(a, b) {
+    return a.name.localeCompare(b.name, "ko");
+  }
+
+  function sortItems(list) {
+    const sorted = list.slice();
+    if (state.sort === "recent") {
+      sorted.sort(function (a, b) {
+        const ca = latestChange(a);
+        const cb = latestChange(b);
+        if (!ca && !cb) return compareName(a, b);
+        if (!ca) return 1;
+        if (!cb) return -1;
+        if (ca.date !== cb.date) return ca.date < cb.date ? 1 : -1;
+        return Math.abs(cb.delta) - Math.abs(ca.delta);
+      });
+    } else if (state.sort === "price-desc") {
+      sorted.sort(function (a, b) { return currentPrice(b) - currentPrice(a); });
+    } else if (state.sort === "price-asc") {
+      sorted.sort(function (a, b) { return currentPrice(a) - currentPrice(b); });
+    } else if (state.sort === "name") {
+      sorted.sort(compareName);
+    } else {
+      sorted.sort(function (a, b) {
+        return a.category.localeCompare(b.category, "ko") || compareName(a, b);
+      });
+    }
+    return sorted;
   }
 
   function td(text, className) {
@@ -492,8 +807,15 @@ const DATA = __PAYLOAD__;
       nameCell.appendChild(badge);
     }
 
-    const priceCell = td(won(item.points[item.points.length - 1][1]), "num price");
+    const priceCell = td(won(currentPrice(item)), "num price");
     if (!item.active) priceCell.title = "마지막으로 확인된 가격";
+    if (isLow30(item)) {
+      const lowBadge = document.createElement("span");
+      lowBadge.className = "badge low";
+      lowBadge.textContent = "30일 최저";
+      lowBadge.title = "최근 30일 중 가장 낮은 가격입니다.";
+      priceCell.appendChild(lowBadge);
+    }
 
     const change = latestChange(item);
     const deltaCell = td("", "num " + (change === null ? "flat" : change.delta < 0 ? "good" : "bad"));
@@ -537,15 +859,11 @@ const DATA = __PAYLOAD__;
     const body = $("rows");
     body.textContent = "";
     const fragment = document.createDocumentFragment();
-    let shown = 0;
-    for (const item of items) {
-      if (!matches(item)) continue;
-      fragment.appendChild(renderRow(item));
-      shown += 1;
-    }
+    const visible = sortItems(items.filter(matches));
+    for (const item of visible) fragment.appendChild(renderRow(item));
     body.appendChild(fragment);
-    $("empty").hidden = shown > 0;
-    $("count").textContent = fmt(shown) + "개 표시 / 전체 " + fmt(items.length) + "개";
+    $("empty").hidden = visible.length > 0;
+    $("count").textContent = fmt(visible.length) + "개 표시 / 전체 " + fmt(items.length) + "개";
   }
 
   function openChart(item) {
@@ -570,6 +888,12 @@ const DATA = __PAYLOAD__;
     }
     part("현재", won(last[1]));
     if (item.list_price !== undefined && item.list_price !== null) part("정가", won(item.list_price));
+    const rate = discountRate(item);
+    if (rate !== null) part("할인율", rate + "%", "good");
+    if ((DATA.days || 0) >= 2) {
+      const low = min30(item);
+      if (low !== null) part("30일 최저", won(low), currentPrice(item) <= low ? "good" : "");
+    }
     if (item.points.length > 1) {
       const diff = last[1] - first[1];
       if (diff !== 0) part("첫 기록 대비", (diff > 0 ? "+" : "-") + fmt(Math.abs(diff)) + "원", diff > 0 ? "bad" : "good");
@@ -694,6 +1018,21 @@ const DATA = __PAYLOAD__;
     if (dialog.open) dialog.close();
   }
 
+  function resetFilters() {
+    state.q = "";
+    state.category = "";
+    state.status = "active";
+    state.changedOnly = false;
+    state.sort = "category";
+    $("q").value = "";
+    $("categoryFilter").value = "";
+    $("statusFilter").value = "active";
+    $("sortFilter").value = "category";
+    $("changedToggle").classList.remove("on");
+    $("changedToggle").setAttribute("aria-pressed", "false");
+    renderTable();
+  }
+
   $("q").addEventListener("input", function (event) {
     window.clearTimeout(searchTimer);
     const value = event.target.value;
@@ -710,6 +1049,17 @@ const DATA = __PAYLOAD__;
     state.status = event.target.value;
     renderTable();
   });
+  $("changedToggle").addEventListener("click", function () {
+    state.changedOnly = !state.changedOnly;
+    this.classList.toggle("on", state.changedOnly);
+    this.setAttribute("aria-pressed", String(state.changedOnly));
+    renderTable();
+  });
+  $("sortFilter").addEventListener("change", function (event) {
+    state.sort = event.target.value;
+    renderTable();
+  });
+  $("resetFilters").addEventListener("click", resetFilters);
   $("chartClose").addEventListener("click", closeDialog);
   $("chartDialog").addEventListener("click", function (event) {
     if (event.target === $("chartDialog")) closeDialog();
@@ -717,8 +1067,18 @@ const DATA = __PAYLOAD__;
   window.addEventListener("resize", function () {
     if (currentItem && $("chartDialog").open) drawChart(currentItem);
   });
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+    const tag = (event.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select" || event.target.isContentEditable) return;
+    if ($("chartDialog").open) return;
+    event.preventDefault();
+    $("q").focus();
+  });
 
   renderStats();
+  renderRecent();
+  renderStale();
   buildCategoryOptions();
   renderTable();
 })();
