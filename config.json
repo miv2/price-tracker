@@ -1,0 +1,10 @@
+{
+  "source_url": "https://www.swuni114.co.kr/",
+  "exclude_keywords": [],
+  "bulk_change_threshold": 10,
+  "min_items_ratio": 0.5,
+  "timeout_seconds": 30,
+  "retries": 3,
+  "retry_delay_seconds": 5,
+  "repo_url": "https://github.com/miv2/price-tracker"
+}

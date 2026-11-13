@@ -1,0 +1,49 @@
+name: 가격 추적
+
+on:
+  schedule:
+    # 매일 오전 10시(KST) = 01:00 UTC
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: price-tracker
+  cancel-in-progress: false
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements-dev.txt
+
+      - name: 테스트
+        run: python -m pytest -q
+
+      - name: 가격 수집·비교·그래프 생성
+        run: python -m tracker
+
+      - name: 결과 커밋
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add prices.json history.csv CHANGES.md index.html
+          if git diff --cached --quiet; then
+            echo "커밋할 변경 사항이 없습니다."
+          else
+            git commit -m "chore: 가격 스냅샷 $(date -u +%F)"
+            git push
+          fi

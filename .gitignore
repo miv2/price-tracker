@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# 로컬 임시 파일
+_scratch_*
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
