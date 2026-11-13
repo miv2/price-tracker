@@ -39,7 +39,7 @@ def load_prices(path: Path) -> dict[tuple[str, str], Item] | None:
             raise PricesError(f"prices.json 항목에 필수 값이 없습니다: {raw!r}") from exc
 
         list_price = raw.get("list_price")
-        list_price = int(list_price) if isinstance(list_price, (int, float)) else None
+        list_price = int(list_price) if isinstance(list_price, (int, float)) and not isinstance(list_price, bool) else None
         item = Item(
             category=category,
             name=name,

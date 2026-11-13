@@ -52,6 +52,10 @@ class ScrapeError(Exception):
     """페이지 요청 또는 파싱에 실패했을 때 발생한다."""
 
 
+class _RetryableError(Exception):
+    """재시도할 수 있는 일시적 오류. 내부에서만 사용한다."""
+
+
 @dataclass
 class ParseResult:
     """파싱 결과와 진단 정보."""
@@ -103,19 +107,24 @@ def fetch_html(config: Config) -> str:
                 timeout=config.timeout_seconds,
             )
             if response.status_code != 200:
-                raise ScrapeError(
-                    f"페이지 응답 코드가 {response.status_code}입니다. 접근 차단이나 점검일 수 있습니다."
-                )
+                msg = f"페이지 응답 코드가 {response.status_code}입니다."
+                if 400 <= response.status_code < 500:
+                    # 4xx(클라이언트 오류)는 재시도해도 결과가 같으므로 즉시 실패시킨다.
+                    raise ScrapeError(f"{msg} 접근 차단이나 주소 오류일 수 있습니다.")
+                # 5xx(서버 오류)는 일시적 장애일 수 있어 재시도한다.
+                raise _RetryableError(f"{msg} 서버 점검일 수 있습니다.")
             encoding = response.encoding or "utf-8"
             if encoding.lower() in {"iso-8859-1", "ascii"}:
                 # 서버가 charset을 생략하면 requests가 ISO-8859-1로 추정한다. 이 사이트는 UTF-8이다.
                 encoding = "utf-8"
             html = response.content.decode(encoding, errors="replace")
             if not html.strip():
-                raise ScrapeError("페이지 응답이 비어 있습니다.")
+                raise _RetryableError("페이지 응답이 비어 있습니다.")
             log.info("페이지를 받았습니다 (%d자, %d번째 시도)", len(html), attempt)
             return html
-        except (requests.RequestException, ScrapeError, UnicodeDecodeError) as exc:
+        except ScrapeError:
+            raise  # 4xx 등 재시도 불필요한 오류는 즉시 전파
+        except (requests.RequestException, _RetryableError, UnicodeDecodeError) as exc:
             last_error = exc
             log.warning("페이지 요청 실패 (%d/%d): %s", attempt, config.retries, exc)
             if attempt < config.retries:

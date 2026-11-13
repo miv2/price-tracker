@@ -139,3 +139,96 @@ def test_filter_items_and_match_exclude(parsed):
     kept, removed = filter_items(parsed.items, ())
     assert removed == 0
     assert len(kept) == len(parsed.items)
+
+
+# --- fetch_html 4xx/5xx 재시도 분리 테스트 ---
+
+
+def _mock_config(**overrides):
+    """테스트용 Config를 만든다."""
+    from tracker.config import Config
+
+    defaults = {
+        "source_url": "https://example.com/",
+        "retries": 3,
+        "timeout_seconds": 5,
+        "retry_delay_seconds": 0,
+    }
+    defaults.update(overrides)
+    return Config(**defaults)
+
+
+def test_fetch_html_4xx_fails_immediately_without_retry(monkeypatch):
+    """4xx 오류는 재시도 없이 즉시 ScrapeError를 던진다."""
+    from unittest.mock import MagicMock
+
+    from tracker.scrape import ScrapeError, fetch_html
+
+    call_count = 0
+
+    def fake_get(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        resp = MagicMock()
+        resp.status_code = 403
+        return resp
+
+    monkeypatch.setattr("tracker.scrape.requests.get", fake_get)
+
+    config = _mock_config(retries=3)
+    with pytest.raises(ScrapeError, match="403"):
+        fetch_html(config)
+
+    assert call_count == 1, "4xx는 재시도하지 않아야 한다"
+
+
+def test_fetch_html_5xx_retries_then_fails(monkeypatch):
+    """5xx 오류는 설정된 횟수만큼 재시도한다."""
+    from unittest.mock import MagicMock
+
+    from tracker.scrape import ScrapeError, fetch_html
+
+    call_count = 0
+
+    def fake_get(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        resp = MagicMock()
+        resp.status_code = 503
+        return resp
+
+    monkeypatch.setattr("tracker.scrape.requests.get", fake_get)
+
+    config = _mock_config(retries=3)
+    with pytest.raises(ScrapeError, match="가져오지 못했습니다"):
+        fetch_html(config)
+
+    assert call_count == 3, "5xx는 retries 횟수만큼 재시도해야 한다"
+
+
+def test_fetch_html_5xx_succeeds_on_retry(monkeypatch):
+    """5xx 이후 재시도에서 성공하면 HTML을 돌려준다."""
+    from unittest.mock import MagicMock
+
+    from tracker.scrape import fetch_html
+
+    call_count = 0
+
+    def fake_get(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        resp = MagicMock()
+        if call_count < 3:
+            resp.status_code = 500
+        else:
+            resp.status_code = 200
+            resp.encoding = "utf-8"
+            resp.content = "<html><body>ok</body></html>".encode("utf-8")
+        return resp
+
+    monkeypatch.setattr("tracker.scrape.requests.get", fake_get)
+
+    config = _mock_config(retries=3)
+    html = fetch_html(config)
+    assert "ok" in html
+    assert call_count == 3
