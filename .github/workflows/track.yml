@@ -2,8 +2,11 @@ name: 가격 추적
 
 on:
   schedule:
-    # 매일 오전 10시(KST) = 01:00 UTC
-    - cron: "0 1 * * *"
+    # 매일 오전 10:17(KST) = 01:17 UTC.
+    # 정각(0분)은 GitHub Actions 부하가 가장 커서 지연되거나 누락되기 쉽다.
+    - cron: "17 1 * * *"
+    # 예비 실행(12:47 KST). 같은 날 다시 돌아도 history.csv의 그날 행을 교체하므로 중복되지 않는다.
+    - cron: "47 3 * * *"
   workflow_dispatch:
   push:
     branches:
