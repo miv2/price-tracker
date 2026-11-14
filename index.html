@@ -661,7 +661,7 @@
 
   <div class="section-heading">
     <div><h2 id="catalogTitle">이벤트 전체보기</h2><p>수원점 공개 할인가 기준 · VAT 별도</p></div>
-    <span class="result-count" id="count"></span>
+    <span class="result-count" id="count" aria-live="polite"></span>
   </div>
   <div class="category-strip" id="categoryChips" role="group" aria-label="이벤트 카테고리"></div>
   <div class="toolbar" role="group" aria-labelledby="catalogTitle">
@@ -688,6 +688,12 @@
       <option value="price-asc">가격 낮은순</option>
       <option value="name">이름순</option>
     </select>
+    <select id="pageSizeFilter" aria-label="한 번에 볼 개수">
+      <option value="40">40개씩</option>
+      <option value="100">100개씩</option>
+      <option value="all">전체</option>
+    </select>
+    <button type="button" class="toggle" id="expandAllToggle" aria-pressed="false">전체 펼치기</button>
     <button type="button" class="toggle" id="viewToggle" aria-pressed="false">표로 보기</button>
   </div>
 
@@ -714,7 +720,7 @@
     <div><button type="button" class="link-btn" id="resetFilters">필터 초기화</button></div>
   </div>
   <div class="load-more-wrap" id="loadMoreWrap" hidden>
-    <button type="button" class="load-more-btn" id="loadMoreBtn">더 보기 (<span id="loadMoreCount">0</span>개 남음)</button>
+    <button type="button" class="load-more-btn" id="loadMoreBtn" aria-controls="eventGrid tableWrap">다음 <span id="loadMoreStep">40</span>개 보기 (<span id="loadMoreCount">0</span>개 남음)</button>
   </div>
   <section class="recent" id="recentPanel" aria-labelledby="recentTitle">
     <details id="recentDetails">
@@ -784,8 +790,8 @@ const DATA = {"source_url":"https://www.swuni114.co.kr/","repo_url":"https://git
     items: []
   };
   const changedIndexes = new Set((RECENT.items || []).map(function (change) { return change.index; }));
-  const state = { q: "", category: "", status: "active", changedOnly: false, sort: "category", view: "cards" };
   const PAGE_SIZE = 40;
+  const state = { q: "", category: "", status: "active", changedOnly: false, sort: "category", view: "cards", pageSize: PAGE_SIZE };
   let displayLimit = PAGE_SIZE;
   const expandedCategories = new Set();
   let currentFilteredList = [];
@@ -793,6 +799,64 @@ const DATA = {"source_url":"https://www.swuni114.co.kr/","repo_url":"https://git
   let searchTimer = null;
 
   const $ = (id) => document.getElementById(id);
+
+  const SORT_VALUES = ["category", "recent", "discount-desc", "price-desc", "price-asc", "name"];
+
+  function readUrlState() {
+    state.q = "";
+    state.category = "";
+    state.status = "active";
+    state.changedOnly = false;
+    state.sort = "category";
+    state.view = "cards";
+    state.pageSize = PAGE_SIZE;
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get("q");
+    if (q) state.q = q;
+    const category = params.get("category");
+    if (category) state.category = category;
+    const status = params.get("status");
+    if (status === "active" || status === "ended" || status === "all") state.status = status;
+    if (params.get("changed") === "1") state.changedOnly = true;
+    const sort = params.get("sort");
+    if (SORT_VALUES.indexOf(sort) !== -1) state.sort = sort;
+    if (params.get("view") === "table") state.view = "table";
+    const limit = params.get("limit");
+    if (limit === "all") state.pageSize = Infinity;
+    else if (limit === "100") state.pageSize = 100;
+    else if (limit === "40") state.pageSize = PAGE_SIZE;
+  }
+
+  function syncUrl(push) {
+    const params = new URLSearchParams();
+    if (state.q) params.set("q", state.q);
+    if (state.category) params.set("category", state.category);
+    if (state.status !== "active") params.set("status", state.status);
+    if (state.changedOnly) params.set("changed", "1");
+    if (state.sort !== "category") params.set("sort", state.sort);
+    if (state.view !== "cards") params.set("view", "table");
+    if (state.pageSize !== PAGE_SIZE) params.set("limit", state.pageSize === Infinity ? "all" : String(state.pageSize));
+    const query = params.toString();
+    const url = window.location.pathname + (query ? "?" + query : "") + window.location.hash;
+    if (push) window.history.pushState(null, "", url);
+    else window.history.replaceState(null, "", url);
+  }
+
+  function applyStateToControls() {
+    $("q").value = state.q;
+    $("categoryFilter").value = state.category;
+    if ($("categoryFilter").value !== state.category) {
+      state.category = "";
+      $("categoryFilter").value = "";
+    }
+    $("statusFilter").value = state.status;
+    $("sortFilter").value = state.sort;
+    $("pageSizeFilter").value = state.pageSize === Infinity ? "all" : String(state.pageSize);
+    $("changedToggle").classList.toggle("on", state.changedOnly);
+    $("changedToggle").setAttribute("aria-pressed", String(state.changedOnly));
+    $("viewToggle").textContent = state.view === "cards" ? "표로 보기" : "카드로 보기";
+    $("viewToggle").setAttribute("aria-pressed", String(state.view === "table"));
+  }
 
   function overallDelta(item) {
     const p = item.points;
@@ -1046,6 +1110,7 @@ const DATA = {"source_url":"https://www.swuni114.co.kr/","repo_url":"https://git
         state.category = value;
         select.value = value;
         renderTable();
+        syncUrl(true);
       });
       chips.appendChild(button);
     }
@@ -1280,7 +1345,7 @@ const DATA = {"source_url":"https://www.swuni114.co.kr/","repo_url":"https://git
     if (entries.length > 2) {
       const initiallyExpanded = expandedCategories.has(category);
       lines.slice(2).forEach(function (line) { line.hidden = !initiallyExpanded; });
-      more.append(initiallyExpanded ? "접기 " : "더보기 ", label);
+      more.append(initiallyExpanded ? "접기 " : "펼치기 ", label);
       label.textContent = initiallyExpanded ? "⌃" : "⌄";
       more.setAttribute("aria-expanded", String(initiallyExpanded));
       more.addEventListener("click", function () {
@@ -1289,8 +1354,9 @@ const DATA = {"source_url":"https://www.swuni114.co.kr/","repo_url":"https://git
         if (expanded) expandedCategories.delete(category);
         else expandedCategories.add(category);
         more.setAttribute("aria-expanded", String(!expanded));
-        more.firstChild.textContent = expanded ? "더보기 " : "접기 ";
+        more.firstChild.textContent = expanded ? "펼치기 " : "접기 ";
         label.textContent = expanded ? "⌄" : "⌃";
+        updateExpandAllButton();
       });
     } else {
       more.append("가격 추이 보기 ", label);
@@ -1301,9 +1367,34 @@ const DATA = {"source_url":"https://www.swuni114.co.kr/","repo_url":"https://git
     return card;
   }
 
+  function expandableCategories() {
+    const counts = new Map();
+    currentFilteredList.slice(0, displayLimit).forEach(function (item) {
+      counts.set(item.category, (counts.get(item.category) || 0) + 1);
+    });
+    const result = [];
+    counts.forEach(function (count, category) {
+      if (count > 2) result.push(category);
+    });
+    return result;
+  }
+
+  function updateExpandAllButton() {
+    const button = $("expandAllToggle");
+    const visible = state.view === "cards" && state.sort === "category";
+    button.hidden = !visible;
+    if (!visible) return;
+    const categories = expandableCategories();
+    const expanded = categories.length > 0 && categories.every(function (category) {
+      return expandedCategories.has(category);
+    });
+    button.textContent = expanded ? "전체 접기" : "전체 펼치기";
+    button.setAttribute("aria-pressed", String(expanded));
+  }
+
   function renderTable(resetPaging) {
     if (resetPaging !== false) {
-      displayLimit = PAGE_SIZE;
+      displayLimit = state.pageSize;
     }
     const body = $("rows");
     body.textContent = "";
@@ -1339,16 +1430,19 @@ const DATA = {"source_url":"https://www.swuni114.co.kr/","repo_url":"https://git
 
     $("empty").hidden = currentFilteredList.length > 0;
     $("count").textContent = currentFilteredList.length > pageItems.length
-      ? fmt(pageItems.length) + " / " + fmt(currentFilteredList.length) + "개 표시"
-      : fmt(currentFilteredList.length) + "개 표시";
+      ? fmt(pageItems.length) + "개 불러옴 / 전체 " + fmt(currentFilteredList.length) + "개"
+      : fmt(currentFilteredList.length) + "개";
 
     const loadMoreWrap = $("loadMoreWrap");
-    if (currentFilteredList.length > displayLimit) {
+    const remaining = currentFilteredList.length - displayLimit;
+    if (remaining > 0) {
       loadMoreWrap.hidden = false;
-      $("loadMoreCount").textContent = fmt(currentFilteredList.length - displayLimit);
+      $("loadMoreStep").textContent = fmt(Math.min(state.pageSize, remaining));
+      $("loadMoreCount").textContent = fmt(remaining);
     } else {
       loadMoreWrap.hidden = true;
     }
+    updateExpandAllButton();
   }
 
   function openChart(item) {
@@ -1528,10 +1622,11 @@ const DATA = {"source_url":"https://www.swuni114.co.kr/","repo_url":"https://git
     $("changedToggle").classList.remove("on");
     $("changedToggle").setAttribute("aria-pressed", "false");
     renderTable();
+    syncUrl(true);
   }
 
   $("loadMoreBtn").addEventListener("click", function () {
-    displayLimit += PAGE_SIZE;
+    displayLimit += state.pageSize;
     renderTable(false);
   });
 
@@ -1554,29 +1649,49 @@ const DATA = {"source_url":"https://www.swuni114.co.kr/","repo_url":"https://git
     searchTimer = window.setTimeout(function () {
       state.q = value.trim();
       renderTable();
+      syncUrl(false);
     }, 120);
   });
   $("categoryFilter").addEventListener("change", function (event) {
     state.category = event.target.value;
     renderTable();
+    syncUrl(true);
   });
   $("statusFilter").addEventListener("change", function (event) {
     state.status = event.target.value;
     renderTable();
+    syncUrl(true);
   });
   $("changedToggle").addEventListener("click", function () {
     state.changedOnly = !state.changedOnly;
     this.classList.toggle("on", state.changedOnly);
     this.setAttribute("aria-pressed", String(state.changedOnly));
     renderTable();
+    syncUrl(true);
   });
   $("sortFilter").addEventListener("change", function (event) {
     state.sort = event.target.value;
     renderTable();
+    syncUrl(true);
+  });
+  $("pageSizeFilter").addEventListener("change", function (event) {
+    state.pageSize = event.target.value === "all" ? Infinity : Number(event.target.value);
+    renderTable();
+    syncUrl(true);
+  });
+  $("expandAllToggle").addEventListener("click", function () {
+    const categories = expandableCategories();
+    const expanded = categories.length > 0 && categories.every(function (category) {
+      return expandedCategories.has(category);
+    });
+    if (expanded) expandedCategories.clear();
+    else categories.forEach(function (category) { expandedCategories.add(category); });
+    renderTable(false);
   });
   $("viewToggle").addEventListener("click", function () {
     state.view = state.view === "cards" ? "table" : "cards";
     renderTable(false);
+    syncUrl(true);
   });
   $("resetFilters").addEventListener("click", resetFilters);
   $("chartClose").addEventListener("click", closeDialog);
@@ -1585,6 +1700,11 @@ const DATA = {"source_url":"https://www.swuni114.co.kr/","repo_url":"https://git
   });
   window.addEventListener("resize", function () {
     if (currentItem && $("chartDialog").open) drawChart(currentItem);
+  });
+  window.addEventListener("popstate", function () {
+    readUrlState();
+    applyStateToControls();
+    renderTable();
   });
   document.addEventListener("keydown", function (event) {
     if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
@@ -1595,11 +1715,14 @@ const DATA = {"source_url":"https://www.swuni114.co.kr/","repo_url":"https://git
     $("q").focus();
   });
 
+  readUrlState();
   renderStats();
   renderRecent();
   renderStale();
   buildCategoryOptions();
+  applyStateToControls();
   renderTable();
+  syncUrl(false);
 })();
 </script>
 </body>
