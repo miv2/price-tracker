@@ -178,7 +178,8 @@ const DATA = (function () {
   function sparkline(item) {
     const W = 104, H = 28, pad = 4;
     const svg = el("svg", { viewBox: "0 0 " + W + " " + H, "class": "spark", "aria-hidden": "true" });
-    svg.style.color = trendColor(item);
+    const color = trendColor(item);
+    svg.style.color = color;
     const points = item.points;
     const values = points.map((p) => p[1]);
     const min = Math.min.apply(null, values);
@@ -190,15 +191,22 @@ const DATA = (function () {
       span === 0 ? H / 2 : H - pad - ((p[1] - min) / span) * (H - pad * 2)
     ]);
     if (coords.length > 1) {
+      const areaPath = "M" + coords[0][0] + "," + coords[0][1] + " " +
+        coords.map((c) => "L" + c[0] + "," + c[1]).join(" ") +
+        " L" + coords[coords.length - 1][0] + "," + H +
+        " L" + coords[0][0] + "," + H + " Z";
+      svg.appendChild(el("path", { d: areaPath, fill: "currentColor", opacity: "0.14" }));
+
       const poly = el("polyline", {
         points: coords.map((c) => c.join(",")).join(" "),
-        fill: "none", stroke: "currentColor", "stroke-width": "1.8",
+        fill: "none", stroke: "currentColor", "stroke-width": "2",
         "stroke-linecap": "round", "stroke-linejoin": "round"
       });
       svg.appendChild(poly);
     }
     const last = coords[coords.length - 1];
-    svg.appendChild(el("circle", { cx: last[0], cy: last[1], r: "2.6", fill: "currentColor" }));
+    svg.appendChild(el("circle", { cx: last[0], cy: last[1], r: "4.5", fill: "currentColor", opacity: "0.2" }));
+    svg.appendChild(el("circle", { cx: last[0], cy: last[1], r: "2.4", fill: "currentColor" }));
     const title = el("title");
     title.textContent = points.length + "일 기록 · " + won(points[points.length - 1][1]);
     svg.appendChild(title);
@@ -741,13 +749,14 @@ const DATA = (function () {
     const meta = $("chartMeta");
     meta.textContent = "";
     function part(label, value, className) {
-      const span = document.createElement("span");
-      span.appendChild(document.createTextNode(label + " "));
+      const chip = document.createElement("span");
+      chip.className = "chart-badge" + (className ? " " + className : "");
+      const lbl = document.createElement("span");
+      lbl.textContent = label;
       const bold = document.createElement("b");
       bold.textContent = value;
-      if (className) bold.className = className;
-      span.appendChild(bold);
-      meta.appendChild(span);
+      chip.append(lbl, bold);
+      meta.appendChild(chip);
     }
     part("현재", won(last[1]));
     if (item.list_price !== undefined && item.list_price !== null) part("정가", won(item.list_price));
@@ -848,8 +857,8 @@ const DATA = (function () {
     const points = item.points;
     const compact = window.innerWidth < 620;
     const width = Math.max(300, Math.floor(svg.clientWidth || 860));
-    const height = compact ? 250 : 320;
-    const pad = { l: compact ? 44 : 52, r: compact ? 14 : 20, t: 32, b: 38 };
+    const height = compact ? 260 : 330;
+    const pad = { l: compact ? 42 : 54, r: compact ? 18 : 26, t: 34, b: 40 };
     const innerW = width - pad.l - pad.r;
     const innerH = height - pad.t - pad.b;
     svg.setAttribute("viewBox", "0 0 " + width + " " + height);
@@ -882,34 +891,53 @@ const DATA = (function () {
     const color = trendColor(item);
 
     const defs = el("defs");
+
+    // 에어리어 그라디언트
     const grad = el("linearGradient", { id: "chartAreaGrad", x1: "0", y1: "0", x2: "0", y2: "1" });
     grad.appendChild(el("stop", { offset: "0%", "stop-color": color, "stop-opacity": "0.30" }));
-    grad.appendChild(el("stop", { offset: "70%", "stop-color": color, "stop-opacity": "0.06" }));
+    grad.appendChild(el("stop", { offset: "65%", "stop-color": color, "stop-opacity": "0.06" }));
     grad.appendChild(el("stop", { offset: "100%", "stop-color": color, "stop-opacity": "0" }));
     defs.appendChild(grad);
+
+    // 라인 소프트 글로우 그림자
+    const glow = el("filter", { id: "chartGlow", x: "-10%", y: "-10%", width: "125%", height: "135%" });
+    glow.appendChild(el("feDropShadow", {
+      dx: "0", dy: "4", stdDeviation: "4", "flood-color": color, "flood-opacity": "0.32"
+    }));
+    defs.appendChild(glow);
+
+    // 툴팁 팝업 카드 그림자
+    const tipShadow = el("filter", { id: "tipShadow", x: "-20%", y: "-20%", width: "140%", height: "140%" });
+    tipShadow.appendChild(el("feDropShadow", {
+      dx: "0", dy: "5", stdDeviation: "8", "flood-color": "#000", "flood-opacity": "0.14"
+    }));
+    defs.appendChild(tipShadow);
+
     svg.appendChild(defs);
 
+    // 배경 가로 격자선 및 Y축 눈금
     for (let value = min; value <= max + step / 2; value += step) {
       const gy = y(value);
       const isBase = value === min;
       svg.appendChild(el("line", {
         x1: pad.l, x2: width - pad.r, y1: gy, y2: gy,
-        stroke: "currentColor", "stroke-opacity": isBase ? "0.3" : "0.13",
-        "stroke-width": "1", "stroke-dasharray": isBase ? "" : "3 5"
+        stroke: "currentColor", "stroke-opacity": isBase ? "0.28" : "0.11",
+        "stroke-width": "1", "stroke-dasharray": isBase ? "" : "3 6"
       }));
       svg.appendChild(svgText(pad.l - 8, gy + 3.5, axisLabel(value), {
-        "text-anchor": "end", "font-size": "10.5", "fill-opacity": "0.7"
+        "text-anchor": "end", "font-size": "10.5", "font-weight": isBase ? "600" : "400", "fill-opacity": isBase ? "0.85" : "0.65"
       }));
     }
 
+    // 참조선 (역대 최저 / 평균가)
     function refLine(value, label, stroke, dash, atStart) {
       if (value === null || value === undefined || value < min || value > max) return;
       const gy = y(value);
       svg.appendChild(el("line", {
         x1: pad.l, x2: width - pad.r, y1: gy, y2: gy,
-        stroke: stroke, "stroke-opacity": "0.5", "stroke-width": "1.2", "stroke-dasharray": dash
+        stroke: stroke, "stroke-opacity": "0.55", "stroke-width": "1.2", "stroke-dasharray": dash
       }));
-      svg.appendChild(svgText(atStart ? pad.l + 4 : width - pad.r - 2, gy - 5, label, {
+      svg.appendChild(svgText(atStart ? pad.l + 6 : width - pad.r - 4, gy - 6, label, {
         "text-anchor": atStart ? "start" : "end",
         "font-size": "10", "font-weight": "700", fill: stroke, "fill-opacity": "0.95",
         "paint-order": "stroke", stroke: "var(--panel)", "stroke-width": "3", "stroke-linejoin": "round"
@@ -917,16 +945,19 @@ const DATA = (function () {
     }
 
     if (rawMin !== rawMax) {
-      if (item.all_time_low !== undefined) refLine(item.all_time_low, "역대 최저", COLORS.down, "2 4", true);
-      if (item.avg_price !== undefined && points.length > 1) refLine(item.avg_price, "평균", "currentColor", "5 4", false);
+      if (item.all_time_low !== undefined) refLine(item.all_time_low, "★ 역대 최저", COLORS.down, "2 4", true);
+      if (item.avg_price !== undefined && points.length > 1) refLine(item.avg_price, "평균 " + won(item.avg_price), "currentColor", "5 4", false);
     }
 
     const coords = points.map((p, i) => [x(i), y(p[1])]);
+
     if (rawMin === rawMax) {
-      svg.appendChild(svgText(pad.l + innerW / 2, y(rawMin) - 18, "가격 변동 없음 · " + points.length + "일 기록", {
-        "text-anchor": "middle", "font-size": "11", "fill-opacity": "0.6"
+      svg.appendChild(svgText(pad.l + innerW / 2, y(rawMin) - 18, "수집 이래 가격 변동 없음 · " + points.length + "일 기록", {
+        "text-anchor": "middle", "font-size": "11.5", "font-weight": "600", "fill-opacity": "0.7"
       }));
     }
+
+    // 곡선 에어리어 및 메인 라인
     if (coords.length > 1) {
       const line = smoothLine(coords);
       svg.appendChild(el("path", {
@@ -935,11 +966,13 @@ const DATA = (function () {
         fill: "url(#chartAreaGrad)", stroke: "none"
       }));
       svg.appendChild(el("path", {
-        d: line, fill: "none", stroke: color, "stroke-width": "2.6",
+        d: line, fill: "none", stroke: color, "stroke-width": "2.8",
+        filter: "url(#chartGlow)",
         "stroke-linecap": "round", "stroke-linejoin": "round"
       }));
     }
 
+    // X축 날짜 눈금
     const xTickCount = Math.min(compact ? 4 : 6, points.length);
     const xIndexes = [];
     for (let i = 0; i < xTickCount; i += 1) {
@@ -949,10 +982,30 @@ const DATA = (function () {
       const isLast = index === points.length - 1;
       svg.appendChild(svgText(x(index), height - pad.b + 20, mmdd(points[index][0]), {
         "text-anchor": "middle", "font-size": "10.5",
-        "font-weight": isLast ? "700" : "400", "fill-opacity": isLast ? "1" : "0.75"
+        "font-weight": isLast ? "700" : "500", "fill-opacity": isLast ? "1" : "0.75"
       }));
     });
 
+    // 최저가 점 하이라이트 링
+    if (rawMin !== rawMax && item.all_time_low !== undefined) {
+      coords.forEach(function (coord, i) {
+        if (points[i][1] === rawMin) {
+          svg.appendChild(el("circle", {
+            cx: coord[0], cy: coord[1], r: "8",
+            fill: "none", stroke: COLORS.down, "stroke-width": "1.4", "stroke-dasharray": "2 2"
+          }));
+        }
+      });
+    }
+
+    // 최신 포인트 펄스 링
+    const lastCoord = coords[coords.length - 1];
+    svg.appendChild(el("circle", {
+      cx: lastCoord[0], cy: lastCoord[1], r: "8",
+      fill: "none", stroke: color, "class": "chart-pulse"
+    }));
+
+    // 데이터 포인트들 (외곽 링 + 중심 코어)
     coords.forEach(function (coord, i) {
       const lastIndex = i === coords.length - 1;
       let dotColor = COLORS.flat;
@@ -961,31 +1014,30 @@ const DATA = (function () {
         if (diff > 0) dotColor = COLORS.up;
         else if (diff < 0) dotColor = COLORS.down;
       }
-      if (lastIndex) {
-        svg.appendChild(el("circle", { cx: coord[0], cy: coord[1], r: "9", fill: color, "fill-opacity": "0.16" }));
-      }
-      const dot = el("circle", {
-        cx: coord[0], cy: coord[1], r: lastIndex ? "4.8" : "3.1",
-        fill: lastIndex ? color : "var(--panel)",
-        stroke: lastIndex ? "var(--panel)" : dotColor,
+      svg.appendChild(el("circle", {
+        cx: coord[0], cy: coord[1], r: lastIndex ? "5.5" : "4",
+        fill: "var(--panel)", stroke: lastIndex ? color : dotColor,
         "stroke-width": lastIndex ? "2.6" : "1.8"
-      });
+      }));
+      svg.appendChild(el("circle", {
+        cx: coord[0], cy: coord[1], r: lastIndex ? "2.8" : "2",
+        fill: lastIndex ? color : dotColor
+      }));
       const title = el("title");
       title.textContent = points[i][0] + " · " + won(points[i][1]);
-      dot.appendChild(title);
-      svg.appendChild(dot);
+      svg.appendChild(title);
     });
 
-    const lastCoord = coords[coords.length - 1];
+    // 최신 가격 말풍선 핀 (Pill)
     const lastText = won(points[points.length - 1][1]);
-    const pillW = lastText.length * 6.6 + 18;
+    const pillW = lastText.length * 6.8 + 18;
     const pillH = 22;
     const pillX = Math.min(Math.max(lastCoord[0] - pillW / 2, pad.l), width - pad.r - pillW);
     let pillY = lastCoord[1] - pillH - 12;
     if (pillY < pad.t - 6) pillY = lastCoord[1] + 12;
     svg.appendChild(el("rect", {
       x: pillX, y: pillY, width: pillW, height: pillH, rx: "11",
-      fill: color
+      fill: color, filter: "url(#chartGlow)"
     }));
     svg.appendChild(svgText(pillX + pillW / 2, pillY + 15, lastText, {
       "text-anchor": "middle", "font-size": "11.5", "font-weight": "700", fill: "#fff"
@@ -997,25 +1049,26 @@ const DATA = (function () {
       item.name + " 가격 추이: " + first[0] + " " + won(first[1]) + "에서 " +
       lastPoint[0] + " " + won(lastPoint[1]) + ", 최저 " + won(rawMin) + ", 최고 " + won(rawMax));
 
-    if (!window.matchMedia || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-
+    // 호버 & 터치 스크러빙 인터랙션
     const hover = el("g", { opacity: "0", "pointer-events": "none" });
     const hoverLine = el("line", {
-      y1: pad.t, y2: baseY, stroke: "currentColor", "stroke-opacity": "0.4",
-      "stroke-width": "1", "stroke-dasharray": "4 4"
+      y1: pad.t, y2: baseY, stroke: "currentColor", "stroke-opacity": "0.35",
+      "stroke-width": "1.2", "stroke-dasharray": "3 4"
     });
-    const hoverDot = el("circle", { r: "4.6", fill: "var(--panel)", stroke: color, "stroke-width": "2.4" });
+    const hoverHalo = el("circle", { r: "9", fill: color, "fill-opacity": "0.2" });
+    const hoverDot = el("circle", { r: "4.8", fill: "var(--panel)", stroke: color, "stroke-width": "2.4" });
     const tip = el("g");
-    const tipRect = el("rect", { rx: "8", fill: "var(--panel)", stroke: "var(--line)", "stroke-width": "1" });
-    const tipDate = svgText(0, 0, "", { "font-size": "10", "fill-opacity": "0.75" });
-    const tipPrice = svgText(0, 0, "", { "font-size": "12", "font-weight": "700", fill: "var(--text)" });
-    tip.append(tipRect, tipDate, tipPrice);
-    hover.append(hoverLine, hoverDot, tip);
+    const tipRect = el("rect", { rx: "9", fill: "var(--panel)", stroke: "var(--line)", "stroke-width": "1", filter: "url(#tipShadow)" });
+    const tipDate = svgText(0, 0, "", { "font-size": "10.5", "font-weight": "600", "fill-opacity": "0.7" });
+    const tipPrice = svgText(0, 0, "", { "font-size": "13", "font-weight": "800", fill: "var(--text)" });
+    const tipDelta = svgText(0, 0, "", { "font-size": "11", "font-weight": "700" });
+    tip.append(tipRect, tipDate, tipPrice, tipDelta);
+    hover.append(hoverLine, hoverHalo, hoverDot, tip);
     svg.appendChild(hover);
 
     const overlay = el("rect", {
       x: pad.l - 6, y: pad.t - 6, width: innerW + 12, height: innerH + 12,
-      fill: "transparent", "pointer-events": "all"
+      fill: "transparent", "pointer-events": "all", style: "cursor: crosshair; touch-action: none;"
     });
     svg.appendChild(overlay);
 
@@ -1023,7 +1076,7 @@ const DATA = (function () {
       try {
         return node.getComputedTextLength();
       } catch (error) {
-        return text.length * 6.4;
+        return text.length * 6.6;
       }
     }
 
@@ -1033,34 +1086,79 @@ const DATA = (function () {
       const cy = y(point[1]);
       hoverLine.setAttribute("x1", cx);
       hoverLine.setAttribute("x2", cx);
+      hoverHalo.setAttribute("cx", cx);
+      hoverHalo.setAttribute("cy", cy);
       hoverDot.setAttribute("cx", cx);
       hoverDot.setAttribute("cy", cy);
       hover.setAttribute("opacity", "1");
 
       tipDate.textContent = point[0];
       tipPrice.textContent = won(point[1]);
-      const tipW = Math.max(measureText(tipDate, point[0]), measureText(tipPrice, won(point[1]))) + 20;
-      const tipH = 40;
+
+      let deltaStr = "첫 기록";
+      let deltaColor = "var(--muted)";
+      if (index > 0) {
+        const prev = points[index - 1][1];
+        const diff = point[1] - prev;
+        if (diff === 0) {
+          deltaStr = "변동 없음";
+          deltaColor = "var(--flat)";
+        } else {
+          const pct = prev ? ((Math.abs(diff) / prev) * 100).toFixed(1) : "0";
+          const sign = diff > 0 ? "+" : "-";
+          deltaStr = (diff > 0 ? "▲ " : "▼ ") + sign + fmt(Math.abs(diff)) + "원 (" + sign + pct + "%)";
+          deltaColor = diff > 0 ? COLORS.up : COLORS.down;
+        }
+      }
+      tipDelta.textContent = deltaStr;
+      tipDelta.setAttribute("fill", deltaColor);
+
+      const maxTextW = Math.max(
+        measureText(tipDate, tipDate.textContent),
+        measureText(tipPrice, tipPrice.textContent),
+        measureText(tipDelta, deltaStr)
+      );
+      const tipW = Math.max(110, maxTextW + 24);
+      const tipH = 56;
       const tipX = Math.min(Math.max(cx - tipW / 2, pad.l), width - pad.r - tipW);
       let tipY = cy - tipH - 14;
       if (tipY < pad.t - 8) tipY = cy + 14;
+
       tipRect.setAttribute("x", tipX);
       tipRect.setAttribute("y", tipY);
       tipRect.setAttribute("width", tipW);
       tipRect.setAttribute("height", tipH);
-      tipDate.setAttribute("x", tipX + 10);
+      tipDate.setAttribute("x", tipX + 11);
       tipDate.setAttribute("y", tipY + 16);
-      tipPrice.setAttribute("x", tipX + 10);
-      tipPrice.setAttribute("y", tipY + 31);
+      tipPrice.setAttribute("x", tipX + 11);
+      tipPrice.setAttribute("y", tipY + 33);
+      tipDelta.setAttribute("x", tipX + 11);
+      tipDelta.setAttribute("y", tipY + 48);
     }
 
-    overlay.addEventListener("pointermove", function (event) {
+    function handlePointer(event) {
       const rect = svg.getBoundingClientRect();
-      const scale = rect.width ? width / rect.width : 1;
+      if (!rect.width) return;
+      const scale = width / rect.width;
       const px = (event.clientX - rect.left) * scale;
       const index = points.length > 1 ? Math.round((px - pad.l) / stepX) : 0;
       showAt(Math.min(Math.max(index, 0), points.length - 1));
+    }
+
+    overlay.addEventListener("pointerdown", function (event) {
+      if (overlay.setPointerCapture) {
+        try { overlay.setPointerCapture(event.pointerId); } catch (_) {}
+      }
+      handlePointer(event);
     });
+    overlay.addEventListener("pointermove", handlePointer);
+    overlay.addEventListener("pointerup", function (event) {
+      if (overlay.releasePointerCapture) {
+        try { overlay.releasePointerCapture(event.pointerId); } catch (_) {}
+      }
+      hover.setAttribute("opacity", "0");
+    });
+    overlay.addEventListener("pointercancel", function () { hover.setAttribute("opacity", "0"); });
     overlay.addEventListener("pointerleave", function () { hover.setAttribute("opacity", "0"); });
   }
 
