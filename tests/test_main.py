@@ -29,6 +29,7 @@ def make_page(entries: list[Entry]) -> str:
 
 
 def setup_project(tmp_path: Path) -> Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     (tmp_path / "config.json").write_text(
         json.dumps(
             {
@@ -267,3 +268,42 @@ def test_corrupt_history_does_not_update_prices(tmp_path: Path):
     page.write_text(make_page(SECOND), encoding="utf-8")
     assert run(project, page, "2026-11-14") == 1
     assert (project / "prices.json").read_bytes() == prices_before
+
+
+def test_validate_snapshot_rejects_out_of_bound_prices(tmp_path: Path):
+    project = setup_project(tmp_path)
+    # 0원 또는 비정상적인 가격(예: 500원)이 포함된 경우 수집 실패
+    invalid_page = [
+        ("이벤트", "정상 시술", 25_000, 50_000),
+        ("이벤트", "오류 시술", 500, 50_000),
+    ]
+    page = tmp_path / "page.html"
+    page.write_text(make_page(invalid_page), encoding="utf-8")
+    assert run(project, page, "2026-11-13") == 1
+    assert not (project / "prices.json").exists()
+
+
+def test_validate_snapshot_rejects_extreme_fluctuations(tmp_path: Path):
+    project = setup_project(tmp_path)
+    # 1일차 정상 수집
+    day1 = [
+        ("카테고리", f"시술{i}", 100_000, 200_000) for i in range(5)
+    ]
+    page = tmp_path / "page.html"
+    page.write_text(make_page(day1), encoding="utf-8")
+    assert run(project, page, "2026-11-13") == 0
+
+    # 2일차: 자릿수 콤마가 잘못 파싱되어 10배 폭등하거나 0이 하나 빠진 비정상 항목 다수 발생
+    day2 = [
+        ("카테고리", "시술0", 1_000_000, 200_000),  # 10배 폭등 (자릿수 오류)
+        ("카테고리", "시술1", 10_000, 200_000),     # 90% 폭락 (0 하나 빠짐)
+        ("카테고리", "시술2", 1_500_000, 200_000),  # 15배 폭등
+        ("카테고리", "시술3", 100_000, 200_000),
+        ("카테고리", "시술4", 100_000, 200_000),
+    ]
+    page.write_text(make_page(day2), encoding="utf-8")
+    assert run(project, page, "2026-11-14") == 1
+    # prices.json이 덮어씌워지지 않고 1일차 상태 유지
+    current_prices = (project / "prices.json").read_text(encoding="utf-8")
+    assert "1,000,000" not in current_prices and "1000000" not in current_prices
+
