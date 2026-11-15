@@ -43,39 +43,39 @@
     background: var(--panel);
     border-bottom: 1px solid var(--line);
     color: var(--text);
-    padding: 0 0 36px;
+    padding: 0 0 24px;
   }
-  .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 30px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+  .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; padding: 14px 0; border-bottom: 1px solid var(--line); }
   .brand { color: var(--text); font-size: 27px; font-weight: 900; letter-spacing: -.065em; line-height: 1; }
   .brand .amp { color: var(--teal); }
   .brand small { margin-left: 10px; font-size: 13px; font-weight: 700; letter-spacing: -.03em; vertical-align: 3px; }
   .hero-note { color: var(--muted); font-size: 12px; font-weight: 600; }
   .hero-note::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--teal); vertical-align: 1px; }
   .eyebrow {
-    margin: 0 0 3px;
+    margin: 0 0 2px;
     color: var(--text);
-    font-size: clamp(27px, 3vw, 40px);
+    font-size: clamp(22px, 2.4vw, 32px);
     font-weight: 850;
     letter-spacing: -.025em;
   }
-  h1 { margin: 0; font-size: clamp(20px, 2vw, 27px); line-height: 1.25; letter-spacing: -.055em; }
-  .sub { max-width: 640px; margin: 10px 0 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
+  h1 { margin: 0; font-size: clamp(18px, 1.6vw, 23px); line-height: 1.25; letter-spacing: -.055em; }
+  .sub { max-width: 640px; margin: 8px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
   .stats {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0;
-    margin-top: 30px;
+    margin-top: 18px;
     border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
   }
   .stat {
-    padding: 17px 20px 17px 0;
+    padding: 12px 20px 12px 0;
   }
   .stat + .stat { padding-left: 20px; border-left: 1px solid var(--line); }
-  .stat strong { display: block; font-size: 23px; line-height: 1.25; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
-  .stat span { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+  .stat strong { display: block; font-size: 20px; line-height: 1.25; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+  .stat span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; font-weight: 600; }
   .stat:first-child strong, .stat:last-child strong { color: var(--text); }
-  main { padding: 28px 0 68px; }
+  main { padding: 22px 0 60px; }
   .notice {
     display: flex;
     flex-wrap: wrap;
@@ -94,8 +94,8 @@
     background: var(--accent-soft);
     border: 1px solid var(--line);
     border-radius: 4px;
-    padding: 18px 20px;
-    margin: 0 0 32px;
+    padding: 14px 18px;
+    margin: 0 0 22px;
   }
   .recent details { display: block; }
   .recent-summary {
@@ -182,7 +182,7 @@
   .recent-item .rcat { flex: none; color: var(--muted); font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .recent-item .rname { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .recent-item .rval { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+  .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 16px; }
   .section-heading h2 { margin: 0; font-size: 28px; line-height: 1.3; letter-spacing: -.045em; }
   .section-heading p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
   .section-heading .result-count { margin: 0 0 2px; font-size: 13px; font-weight: 700; color: var(--accent); }
@@ -242,6 +242,14 @@
   .event-more { width: 100%; min-height: 40px; margin-top: auto; border: 0; border-radius: 999px; background: #f5f5f5; color: #656565; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
   .event-more:hover, .event-more:focus-visible { background: #ececec; outline: none; }
   .event-more span { color: #0da9be; font-weight: 800; }
+  .event-card.compact .event-card-body { min-height: 0; padding: 0 16px 14px; }
+  .event-card.compact .event-line { padding: 14px 0 10px; border-bottom: 0; }
+  .event-card.compact .event-category { font-size: 13px; font-weight: 700; color: var(--muted); }
+  .event-card.compact .event-name { min-height: 0; margin-top: 10px; font-size: 12.5px; }
+  .event-card.compact .event-sale-price { font-size: 20px; }
+  .event-compact-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--line); }
+  .event-compact-rate { padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11.5px; font-weight: 700; }
+  .event-compact-foot svg.spark { margin-left: auto; }
   @media (max-width: 1240px) { .event-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   @media (max-width: 900px) { .event-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .search { position: relative; flex: 1 1 260px; }
@@ -415,32 +423,34 @@
     .event-list-price { font-size: 12px; }
     .event-name { font-size: 12px; margin-top: 10px; }
     .hero-top { margin-bottom: 25px; padding: 17px 0; }
+    header.hero { padding: 0 0 18px; }
+    .hero-top { margin-bottom: 12px; padding: 12px 0; }
     .brand { font-size: 22px; }
     .brand small { font-size: 11px; margin-left: 5px; vertical-align: 2px; }
     .hero-note { font-size: 11px; }
-    .eyebrow { font-size: 27px; }
-    h1 { font-size: 21px; }
-    .sub { font-size: 13px; margin-top: 10px; }
-    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin-top: 28px; }
-    .stat { padding: 12px 8px 12px 0; }
-    .stat + .stat { padding-left: 12px; }
-    .stat:nth-child(3) { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); }
-    .stat:nth-child(4) { border-top: 1px solid var(--line); }
-    .stat strong { font-size: 21px; }
-    .stat span { font-size: 11px; margin-top: 3px; }
+    .eyebrow { font-size: 22px; }
+    h1 { font-size: 19px; }
+    .sub { font-size: 12.5px; margin-top: 6px; line-height: 1.5; }
+    .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-top: 12px; }
+    .stat { padding: 9px 6px 9px 0; }
+    .stat + .stat { padding-left: 6px; }
+    .stat:nth-child(3) { border-left: 1px solid var(--line); padding-left: 6px; border-top: 0; }
+    .stat:nth-child(4) { border-top: 0; }
+    .stat strong { font-size: 16px; }
+    .stat span { font-size: 10px; margin-top: 2px; line-height: 1.3; word-break: keep-all; }
 
-    main { padding: 18px 0 44px; }
+    main { padding: 14px 0 40px; }
     .section-heading { align-items: end; margin-bottom: 12px; }
     .section-heading h2 { font-size: 22px; }
     .section-heading p { font-size: 12px; }
-    .toolbar { gap: 8px; margin-bottom: 12px; padding: 12px 0; }
+    .toolbar { gap: 6px; margin-bottom: 10px; padding: 8px 0; }
     .search { flex: 1 1 100%; }
     .toolbar > select, .toolbar > .toggle {
       flex: 1 1 calc(50% - 4px);
       min-width: 0;
       font-size: 13px;
-      padding: 9px 10px;
-      height: 40px;
+      padding: 8px 10px;
+      height: 36px;
     }
     .section-heading .result-count { width: auto; margin-left: 0; font-size: 12px; text-align: right; }
 
@@ -563,9 +573,11 @@
     }
     .dialog-head h2 { font-size: 18px; }
     .chart-meta { gap: 6px 12px; font-size: 12.5px; }
-    .recent { padding: 15px 14px; margin: 0 0 24px; }
-    .recent-head-left h2 { font-size: 15px; }
+    .recent { padding: 10px 12px; margin: 0 0 14px; }
+    .recent-head-left h2 { font-size: 14.5px; }
     .recent-item { padding: 8px 10px; font-size: 12.5px; }
+    .recent-head-left p { font-size: 11.5px; margin-top: 2px; }
+    .recent-counts .count { padding: 3px 8px; font-size: 11px; }
     .recent-item .rcat { display: none; }
   }
 
@@ -577,7 +589,6 @@
     .event-sale-price { font-size: 22px; }
     .event-list-price { font-size: 14px; }
     .event-name { font-size: 13px; }
-    .stats { grid-template-columns: 1fr 1fr; }
     .toolbar > select, .toolbar > .toggle {
       flex: 1 1 calc(50% - 4px);
     }
@@ -687,9 +698,6 @@
       </svg>
       <input id="q" type="search" placeholder="시술명·카테고리 검색 (예: 피코토닝)" autocomplete="off" aria-label="검색">
     </label>
-    <select id="categoryFilter" aria-label="카테고리">
-      <option value="">전체 카테고리</option>
-    </select>
     <select id="statusFilter" aria-label="판매 상태">
       <option value="active">판매 중</option>
       <option value="ended">종료</option>
@@ -799,6 +807,7 @@ const DATA = __PAYLOAD__;
   let displayLimit = PAGE_SIZE;
   const expandedCategories = new Set();
   let currentFilteredList = [];
+  let currentPageItems = [];
   let currentItem = null;
   let searchTimer = null;
 
@@ -848,11 +857,12 @@ const DATA = __PAYLOAD__;
 
   function applyStateToControls() {
     $("q").value = state.q;
-    $("categoryFilter").value = state.category;
-    if ($("categoryFilter").value !== state.category) {
-      state.category = "";
-      $("categoryFilter").value = "";
-    }
+    const chips = $("categoryChips").querySelectorAll("button");
+    const known = Array.prototype.some.call(chips, function (button) {
+      return button.dataset.category === state.category;
+    });
+    if (!known) state.category = "";
+    syncCategoryChips(true);
     $("statusFilter").value = state.status;
     $("sortFilter").value = state.sort;
     $("pageSizeFilter").value = state.pageSize === Infinity ? "all" : String(state.pageSize);
@@ -1098,8 +1108,7 @@ const DATA = __PAYLOAD__;
     $("staleNotice").hidden = false;
   }
 
-  function buildCategoryOptions() {
-    const select = $("categoryFilter");
+  function buildCategoryChips() {
     const chips = $("categoryChips");
     const categories = Array.from(new Set(items.map((item) => item.category))).sort(function (a, b) {
       return a.localeCompare(b, "ko");
@@ -1112,7 +1121,6 @@ const DATA = __PAYLOAD__;
       button.setAttribute("aria-pressed", "false");
       button.addEventListener("click", function () {
         state.category = value;
-        select.value = value;
         renderTable();
         syncUrl(true);
       });
@@ -1120,12 +1128,22 @@ const DATA = __PAYLOAD__;
     }
     addChip("", "전체보기");
     for (const category of categories) {
-      const option = document.createElement("option");
-      option.value = category;
-      option.textContent = category;
-      select.appendChild(option);
       addChip(category, category || "기타");
     }
+  }
+
+  function syncCategoryChips(scrollToActive) {
+    const strip = $("categoryChips");
+    let active = null;
+    strip.querySelectorAll("button").forEach(function (button) {
+      const on = button.dataset.category === state.category;
+      button.setAttribute("aria-pressed", String(on));
+      if (on) active = button;
+    });
+    if (!scrollToActive || !active) return;
+    const stripRect = strip.getBoundingClientRect();
+    const chipRect = active.getBoundingClientRect();
+    strip.scrollLeft += chipRect.left - stripRect.left - (strip.clientWidth - chipRect.width) / 2;
   }
 
   function matches(item) {
@@ -1280,29 +1298,32 @@ const DATA = __PAYLOAD__;
     return tr;
   }
 
-  function renderEventCard(category, entries) {
+  function renderEventCard(category, entries, options) {
+    const compact = !!(options && options.compact);
     const card = document.createElement("article");
-    card.className = "event-card";
+    card.className = "event-card" + (compact ? " compact" : "");
     card.setAttribute("aria-label", (category || "이벤트") + " 가격 목록");
-    const banner = document.createElement("div");
-    banner.className = "event-banner";
-    let bannerFile = "";
-    if (category.includes("첫방문")) bannerFile = "assets/first-visit-banner.jpg";
-    else if (category.includes("이달의 단독")) bannerFile = "assets/monthly-banner.jpg";
-    if (bannerFile) {
-      const img = document.createElement("img");
-      img.src = bannerFile;
-      img.alt = category + " 이벤트 배너";
-      banner.appendChild(img);
-    } else {
-      banner.classList.add("generic");
-      const label = document.createElement("span");
-      label.textContent = "LIMITED EVENT";
-      const title = document.createElement("strong");
-      title.textContent = category || "이벤트";
-      banner.append(label, title);
+    if (!compact) {
+      const banner = document.createElement("div");
+      banner.className = "event-banner";
+      let bannerFile = "";
+      if (category.includes("첫방문")) bannerFile = "assets/first-visit-banner.jpg";
+      else if (category.includes("이달의 단독")) bannerFile = "assets/monthly-banner.jpg";
+      if (bannerFile) {
+        const img = document.createElement("img");
+        img.src = bannerFile;
+        img.alt = category + " 이벤트 배너";
+        banner.appendChild(img);
+      } else {
+        banner.classList.add("generic");
+        const label = document.createElement("span");
+        label.textContent = "LIMITED EVENT";
+        const title = document.createElement("strong");
+        title.textContent = category || "이벤트";
+        banner.append(label, title);
+      }
+      card.appendChild(banner);
     }
-    card.appendChild(banner);
 
     const body = document.createElement("div");
     body.className = "event-card-body";
@@ -1371,13 +1392,26 @@ const DATA = __PAYLOAD__;
       });
       body.appendChild(more);
     }
+    if (compact) {
+      const foot = document.createElement("div");
+      foot.className = "event-compact-foot";
+      const rate = discountRate(entries[0]);
+      if (rate !== null) {
+        const badge = document.createElement("span");
+        badge.className = "event-compact-rate";
+        badge.textContent = rate + "% 할인";
+        foot.appendChild(badge);
+      }
+      foot.appendChild(sparkline(entries[0]));
+      body.appendChild(foot);
+    }
     card.appendChild(body);
     return card;
   }
 
   function expandableCategories() {
     const counts = new Map();
-    currentFilteredList.slice(0, displayLimit).forEach(function (item) {
+    currentPageItems.forEach(function (item) {
       counts.set(item.category, (counts.get(item.category) || 0) + 1);
     });
     const result = [];
@@ -1410,25 +1444,37 @@ const DATA = __PAYLOAD__;
     grid.textContent = "";
     const fragment = document.createDocumentFragment();
     currentFilteredList = sortItems(items.filter(matches));
-    $("categoryChips").querySelectorAll("button").forEach(function (button) {
-      button.setAttribute("aria-pressed", String(button.dataset.category === state.category));
-    });
-    const pageItems = currentFilteredList.slice(0, displayLimit);
+    syncCategoryChips(false);
+    let pageItems;
+    let groups = null;
+    if (state.sort === "category") {
+      // 카테고리 카드가 페이지 경계에서 쪼개지지 않도록 카테고리 단위로 자른다.
+      groups = [];
+      let loaded = 0;
+      for (const item of currentFilteredList) {
+        const last = groups[groups.length - 1];
+        const sameCategory = last && last[0] === item.category;
+        if (!sameCategory && loaded >= displayLimit) break;
+        if (sameCategory) last[1].push(item);
+        else groups.push([item.category, [item]]);
+        loaded += 1;
+      }
+      pageItems = [];
+      for (const group of groups) pageItems = pageItems.concat(group[1]);
+    } else {
+      pageItems = currentFilteredList.slice(0, displayLimit);
+    }
+    currentPageItems = pageItems;
     const cardsView = state.view === "cards";
     $("tableWrap").hidden = cardsView;
     grid.hidden = !cardsView;
     $("viewToggle").textContent = cardsView ? "표로 보기" : "카드로 보기";
     $("viewToggle").setAttribute("aria-pressed", String(!cardsView));
     if (cardsView) {
-      if (state.sort === "category") {
-        const groups = new Map();
-        pageItems.forEach(function (item) {
-          if (!groups.has(item.category)) groups.set(item.category, []);
-          groups.get(item.category).push(item);
-        });
-        groups.forEach(function (entries, category) { fragment.appendChild(renderEventCard(category, entries)); });
+      if (groups) {
+        groups.forEach(function (group) { fragment.appendChild(renderEventCard(group[0], group[1])); });
       } else {
-        pageItems.forEach(function (item) { fragment.appendChild(renderEventCard(item.category, [item])); });
+        pageItems.forEach(function (item) { fragment.appendChild(renderEventCard(item.category, [item], { compact: true })); });
       }
       grid.appendChild(fragment);
     } else {
@@ -1442,7 +1488,7 @@ const DATA = __PAYLOAD__;
       : fmt(currentFilteredList.length) + "개";
 
     const loadMoreWrap = $("loadMoreWrap");
-    const remaining = currentFilteredList.length - displayLimit;
+    const remaining = currentFilteredList.length - pageItems.length;
     if (remaining > 0) {
       loadMoreWrap.hidden = false;
       $("loadMoreStep").textContent = fmt(Math.min(state.pageSize, remaining));
@@ -1797,7 +1843,6 @@ const DATA = __PAYLOAD__;
     state.changedOnly = false;
     state.sort = "category";
     $("q").value = "";
-    $("categoryFilter").value = "";
     $("statusFilter").value = "active";
     $("sortFilter").value = "category";
     $("changedToggle").classList.remove("on");
@@ -1832,11 +1877,6 @@ const DATA = __PAYLOAD__;
       renderTable();
       syncUrl(false);
     }, 120);
-  });
-  $("categoryFilter").addEventListener("change", function (event) {
-    state.category = event.target.value;
-    renderTable();
-    syncUrl(true);
   });
   $("statusFilter").addEventListener("change", function (event) {
     state.status = event.target.value;
@@ -1900,7 +1940,7 @@ const DATA = __PAYLOAD__;
   renderStats();
   renderRecent();
   renderStale();
-  buildCategoryOptions();
+  buildCategoryChips();
   applyStateToControls();
   renderTable();
   syncUrl(false);
