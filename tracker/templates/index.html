@@ -95,7 +95,7 @@
     border: 1px solid var(--line);
     border-radius: 4px;
     padding: 18px 20px;
-    margin-top: 42px;
+    margin: 0 0 32px;
   }
   .recent details { display: block; }
   .recent-summary {
@@ -563,7 +563,7 @@
     }
     .dialog-head h2 { font-size: 18px; }
     .chart-meta { gap: 6px 12px; font-size: 12.5px; }
-    .recent { padding: 15px 14px; margin-top: 30px; }
+    .recent { padding: 15px 14px; margin: 0 0 24px; }
     .recent-head-left h2 { font-size: 15px; }
     .recent-item { padding: 8px 10px; font-size: 12.5px; }
     .recent-item .rcat { display: none; }
@@ -662,6 +662,19 @@
     <a id="actionsLink" href="https://github.com/" target="_blank" rel="noopener">Actions 상태 보기</a>
   </div>
 
+  <section class="recent" id="recentPanel" aria-labelledby="recentTitle">
+    <details id="recentDetails">
+      <summary class="recent-summary">
+        <div class="recent-head-left">
+          <h2 id="recentTitle">최근 변동</h2>
+          <p class="small" id="recentSub">불러오는 중…</p>
+        </div>
+        <div class="recent-counts" id="recentCounts"></div>
+      </summary>
+      <ul class="recent-list" id="recentList"></ul>
+    </details>
+  </section>
+
   <div class="section-heading">
     <div><h2 id="catalogTitle">이벤트 전체보기</h2><p>수원점 공개 할인가 기준 · VAT 별도</p></div>
     <span class="result-count" id="count" aria-live="polite"></span>
@@ -725,18 +738,6 @@
   <div class="load-more-wrap" id="loadMoreWrap" hidden>
     <button type="button" class="load-more-btn" id="loadMoreBtn" aria-controls="eventGrid tableWrap">다음 <span id="loadMoreStep">40</span>개 보기 (<span id="loadMoreCount">0</span>개 남음)</button>
   </div>
-  <section class="recent" id="recentPanel" aria-labelledby="recentTitle">
-    <details id="recentDetails">
-      <summary class="recent-summary">
-        <div class="recent-head-left">
-          <h2 id="recentTitle">최근 변동</h2>
-          <p class="small" id="recentSub">불러오는 중…</p>
-        </div>
-        <div class="recent-counts" id="recentCounts"></div>
-      </summary>
-      <ul class="recent-list" id="recentList"></ul>
-    </details>
-  </section>
   <button type="button" class="scroll-top-btn" id="scrollTopBtn" aria-label="맨 위로 이동" title="맨 위로">↑</button>
 </main>
 
