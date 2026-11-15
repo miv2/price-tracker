@@ -1,2 +1,5 @@
 -r requirements.txt
 pytest>=8,<9
+mypy>=1.10,<2
+types-requests>=2.31,<3
+types-beautifulsoup4>=4.12,<5

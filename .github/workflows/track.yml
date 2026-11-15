@@ -45,6 +45,9 @@ jobs:
       - name: 의존성 설치
         run: pip install -r requirements-dev.txt
 
+      - name: 정적 타입 검사
+        run: mypy tracker
+
       - name: 테스트
         run: python -m pytest -q
 
