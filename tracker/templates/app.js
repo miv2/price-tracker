@@ -1,4 +1,7 @@
 const DATA = (function () {
+  if (typeof window !== "undefined" && window.__PRICE_DATA__) {
+    return window.__PRICE_DATA__;
+  }
   const node = document.getElementById("payload");
   if (!node) return { items: [] };
   try {

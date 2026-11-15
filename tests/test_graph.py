@@ -139,13 +139,16 @@ def test_write_graph_creates_file(tmp_path: Path):
     path = tmp_path / "index.html"
     write_graph(path, ROWS, [active_item()], "https://example.com/")
     html = path.read_text(encoding="utf-8")
-    assert "피코토닝 1회" in html
-    assert "빼빼로데이" in html
+    data_js = (tmp_path / "assets" / "data.js").read_text(encoding="utf-8")
+
     assert "history.csv" in html
     assert "CHANGES.md" in html
     assert "최근 변동" in html
     assert "변동만" in html
-    assert '"recent"' in html
+    assert "피코토닝 1회" in data_js
+    assert "빼빼로데이" in data_js
+    assert '"recent"' in data_js
+    assert "window.__PRICE_DATA__=" in data_js
 
 
 def test_write_graph_splits_static_assets(tmp_path: Path):
@@ -155,20 +158,23 @@ def test_write_graph_splits_static_assets(tmp_path: Path):
     html = path.read_text(encoding="utf-8")
     css = (tmp_path / "assets" / "style.css").read_text(encoding="utf-8")
     js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
+    data_js = (tmp_path / "assets" / "data.js").read_text(encoding="utf-8")
 
-    # HTML은 골격과 데이터만 남고, 스타일·스크립트는 외부 파일로 빠진다.
+    # HTML은 골격만 남고, 스타일·스크립트·데이터는 외부 파일로 분리된다.
     assert "<style>" not in html
     assert "const DATA = __PAYLOAD__" not in html
     assert "__ASSET_VERSION__" not in html
-    assert '<script type="application/json" id="payload">' in html
+    assert "__DATA_VERSION__" not in html
     assert ":root {" in css
     assert "30일 최저" in js
-    assert 'document.getElementById("payload")' in js
+    assert "window.__PRICE_DATA__" in js
+    assert "window.__PRICE_DATA__=" in data_js
 
-    # 자산 주소에는 내용 해시가 붙어 CSS·JS가 바뀔 때만 새로 받는다.
+    # 자산 주소에는 내용 해시가 붙어 CSS·JS·데이터가 바뀔 때만 새로 받는다.
     version = asset_version(load_assets())
     assert f'href="assets/style.css?v={version}"' in html
     assert f'src="assets/app.js?v={version}"' in html
+    assert 'src="assets/data.js?v=' in html
 
 
 def test_asset_version_tracks_content():

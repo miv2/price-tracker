@@ -19,8 +19,10 @@ TEMPLATE_DIR = Path(__file__).parent / "templates"
 TEMPLATE_PATH = TEMPLATE_DIR / "index.html"
 PAYLOAD_PLACEHOLDER = "__PAYLOAD__"
 ASSET_VERSION_PLACEHOLDER = "__ASSET_VERSION__"
+DATA_VERSION_PLACEHOLDER = "__DATA_VERSION__"
 ASSET_NAMES = ("style.css", "app.js")
 ASSET_DIR_NAME = "assets"
+DATA_JS_NAME = "data.js"
 
 KIND_ORDER = {"decrease": 0, "increase": 1, "new": 2, "removed": 3}
 
@@ -196,14 +198,23 @@ def write_assets(target_dir: Path, assets: dict[str, str]) -> None:
         atomic_write_text(target, text)
 
 
+def serialize_payload(payload: dict) -> str:
+    """페이로드를 JSON 문자열로 직렬화한다."""
+    payload_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    return (
+        payload_json.replace("</", "<\\/")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
+
+
 def render_html(
     payload: dict,
     template_path: Path = TEMPLATE_PATH,
     version: str = "",
+    data_version: str = "",
 ) -> str:
     template = template_path.read_text(encoding="utf-8")
-    if PAYLOAD_PLACEHOLDER not in template:
-        raise RuntimeError(f"그래프 템플릿에 {PAYLOAD_PLACEHOLDER} 자리표시자가 없습니다: {template_path}")
 
     if not version:
         try:
@@ -211,15 +222,15 @@ def render_html(
         except OSError:
             version = "0"
 
-    payload_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-    # JSON을 <script> 안에 넣을 때 </script>로 조기 종료되지 않게 한다.
-    payload_json = (
-        payload_json.replace("</", "<\\/")
-        .replace("\u2028", "\\u2028")
-        .replace("\u2029", "\\u2029")
-    )
-    html = template.replace(PAYLOAD_PLACEHOLDER, payload_json)
-    return html.replace(ASSET_VERSION_PLACEHOLDER, version)
+    html = template.replace(ASSET_VERSION_PLACEHOLDER, version)
+    if DATA_VERSION_PLACEHOLDER in html:
+        html = html.replace(DATA_VERSION_PLACEHOLDER, data_version or "0")
+
+    # 하위 호환: 템플릿에 여전히 __PAYLOAD__ 자리가 남아있는 경우 인라인 치환
+    if PAYLOAD_PLACEHOLDER in html:
+        html = html.replace(PAYLOAD_PLACEHOLDER, serialize_payload(payload))
+
+    return html
 
 
 def write_graph(
@@ -232,6 +243,19 @@ def write_graph(
 ) -> None:
     payload = build_payload(rows, active_items, source_url, repo_url)
     assets = load_assets(template_path.parent)
-    write_assets(path.parent / ASSET_DIR_NAME, assets)
-    html = render_html(payload, template_path, asset_version(assets))
+    assets_dir = path.parent / ASSET_DIR_NAME
+
+    # 1. CSS 및 정적 JS 자산 저장
+    write_assets(assets_dir, assets)
+
+    # 2. 대용량 가격 페이로드를 assets/data.js로 분리하여 HTML 용량 절감 및 캐싱 활성화
+    payload_json = serialize_payload(payload)
+    data_js = f"window.__PRICE_DATA__={payload_json};"
+    data_version = hashlib.sha256(data_js.encode("utf-8")).hexdigest()[:10]
+    data_target = assets_dir / DATA_JS_NAME
+    if not data_target.exists() or data_target.read_text(encoding="utf-8") != data_js:
+        atomic_write_text(data_target, data_js)
+
+    # 3. 경량 HTML 스켈레톤 생성
+    html = render_html(payload, template_path, asset_version(assets), data_version)
     atomic_write_text(path, html)
