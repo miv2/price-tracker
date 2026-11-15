@@ -207,7 +207,7 @@ details[open] .recent-head-left h2::after {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
-.event-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
+.event-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; align-items: start; }
 .event-card { min-width: 0; display: flex; flex-direction: column; background: var(--panel); box-shadow: 0 2px 9px rgba(0, 0, 0, .16); }
 .event-banner { height: 176px; overflow: hidden; background: #eed0d4; }
 .event-banner img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -471,6 +471,7 @@ dialog::backdrop { background: rgba(12, 16, 24, .55); backdrop-filter: blur(2px)
   .section-heading p { font-size: 12px; }
   .toolbar { gap: 6px; margin-bottom: 10px; padding: 8px 0; }
   .search { flex: 1 1 100%; }
+  #pageSizeFilter { display: none; }
   .toolbar > select, .toolbar > .toggle {
     flex: 1 1 calc(50% - 4px);
     min-width: 0;
