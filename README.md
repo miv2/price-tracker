@@ -29,6 +29,8 @@
 | `history.csv` | 날짜별 가격 이력. 그래프의 원본 데이터 |
 | `CHANGES.md` | 변동이 있었던 날의 요약. 최신 항목이 위에 쌓임 |
 | `index.html` | 최근 변동·필터·정렬·30일 최저가를 담은 그래프 페이지(생성 파일, GitHub Pages로 게시) |
+| `assets/style.css`, `assets/app.js` | 그래프 페이지의 스타일·스크립트(생성 파일). 내용 해시를 붙여 캐시하고, 바뀔 때만 새로 받습니다 |
+| `tracker/templates/` | `index.html` 골격, `style.css`, `app.js` 원본 |
 | `tracker/` | 수집·비교·기록·그래프 생성 코드 |
 | `tests/` | 파서·비교·요약·이력·그래프·전체 흐름 테스트 |
 | `.github/workflows/track.yml` | 매일·push 시 실행 + 결과 커밋 워크플로 |
@@ -48,12 +50,17 @@ python -m tracker --dry-run
 # 수집한 시술명·가격을 표로 출력 (파일 쓰지 않음)
 python -m tracker --list-items
 
-# 실제 실행: prices.json / history.csv / CHANGES.md / index.html 갱신
+# 실제 실행: prices.json / history.csv / CHANGES.md / index.html / assets 갱신
 python -m tracker
 ```
 
 `index.html`은 파일을 브라우저로 열거나, 폴더에서 `python -m http.server 8000`을 실행해
 <http://localhost:8000/index.html>로 확인할 수 있습니다.
+
+페이지는 매일 바뀌는 `index.html`(데이터 포함)과 잘 바뀌지 않는 `assets/style.css`·`assets/app.js`로
+나뉩니다. 자산 주소에는 내용 해시(`assets/app.js?v=…`)가 붙어서, 스타일·스크립트를 고치지 않은 날에는
+브라우저가 캐시한 파일을 그대로 쓰고 HTML만 새로 받습니다. 자산을 고쳤다면 `python -m tracker`를 한 번
+실행해 `assets/`를 다시 만들고 함께 커밋하세요.
 
 테스트:
 

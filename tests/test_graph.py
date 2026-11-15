@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tracker.graph import build_payload, render_html, write_graph
+from tracker.graph import (
+    asset_version,
+    build_payload,
+    load_assets,
+    render_html,
+    write_assets,
+    write_graph,
+)
 from tracker.models import Item
 
 ROWS = [
@@ -138,5 +145,47 @@ def test_write_graph_creates_file(tmp_path: Path):
     assert "CHANGES.md" in html
     assert "최근 변동" in html
     assert "변동만" in html
-    assert "30일 최저" in html
     assert '"recent"' in html
+
+
+def test_write_graph_splits_static_assets(tmp_path: Path):
+    path = tmp_path / "index.html"
+    write_graph(path, ROWS, [active_item()], "https://example.com/")
+
+    html = path.read_text(encoding="utf-8")
+    css = (tmp_path / "assets" / "style.css").read_text(encoding="utf-8")
+    js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
+
+    # HTML은 골격과 데이터만 남고, 스타일·스크립트는 외부 파일로 빠진다.
+    assert "<style>" not in html
+    assert "const DATA = __PAYLOAD__" not in html
+    assert "__ASSET_VERSION__" not in html
+    assert '<script type="application/json" id="payload">' in html
+    assert ":root {" in css
+    assert "30일 최저" in js
+    assert 'document.getElementById("payload")' in js
+
+    # 자산 주소에는 내용 해시가 붙어 CSS·JS가 바뀔 때만 새로 받는다.
+    version = asset_version(load_assets())
+    assert f'href="assets/style.css?v={version}"' in html
+    assert f'src="assets/app.js?v={version}"' in html
+
+
+def test_asset_version_tracks_content():
+    base = load_assets()
+    assert asset_version(base) == asset_version(dict(base))
+    changed = dict(base)
+    changed["app.js"] = base["app.js"] + "\n"
+    assert asset_version(changed) != asset_version(base)
+
+
+def test_write_assets_keeps_unchanged_file(tmp_path: Path):
+    assets = load_assets()
+    write_assets(tmp_path / "assets", assets)
+    target = tmp_path / "assets" / "app.js"
+    before = target.stat().st_ino
+    write_assets(tmp_path / "assets", assets)
+    # 내용이 같으면 다시 쓰지 않는다(원자적 교체는 inode를 바꾼다).
+    assert target.stat().st_ino == before
+    assert target.read_text(encoding="utf-8") == assets["app.js"]
+

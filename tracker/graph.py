@@ -1,7 +1,13 @@
-"""history.csv로 시술별 가격 추이 페이지(index.html)를 만든다."""
+"""history.csv로 시술별 가격 추이 페이지(index.html)를 만든다.
+
+페이지는 HTML 골격(index.html)과 정적 자산(assets/style.css, assets/app.js)으로
+나뉜다. 매일 바뀌는 것은 데이터가 들어간 HTML뿐이라 브라우저가 CSS·JS를
+재사용할 수 있고, 자산 주소에는 내용 해시를 붙여 바뀔 때만 새로 받게 한다.
+"""
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -9,8 +15,12 @@ from .history import group_by_item
 from .models import Item
 from .util import atomic_write_text
 
-TEMPLATE_PATH = Path(__file__).parent / "templates" / "index.html"
+TEMPLATE_DIR = Path(__file__).parent / "templates"
+TEMPLATE_PATH = TEMPLATE_DIR / "index.html"
 PAYLOAD_PLACEHOLDER = "__PAYLOAD__"
+ASSET_VERSION_PLACEHOLDER = "__ASSET_VERSION__"
+ASSET_NAMES = ("style.css", "app.js")
+ASSET_DIR_NAME = "assets"
 
 KIND_ORDER = {"decrease": 0, "increase": 1, "new": 2, "removed": 3}
 
@@ -158,10 +168,48 @@ def build_payload(
     }
 
 
-def render_html(payload: dict, template_path: Path = TEMPLATE_PATH) -> str:
+def load_assets(template_dir: Path = TEMPLATE_DIR) -> dict[str, str]:
+    """템플릿 폴더에서 배포할 정적 자산(CSS·JS)을 읽는다."""
+    return {
+        name: (template_dir / name).read_text(encoding="utf-8")
+        for name in ASSET_NAMES
+    }
+
+
+def asset_version(assets: dict[str, str]) -> str:
+    """자산 내용이 바뀔 때만 달라지는 짧은 해시. 캐시 무효화용 쿼리로 쓴다."""
+    digest = hashlib.sha256()
+    for name in sorted(assets):
+        digest.update(name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(assets[name].encode("utf-8"))
+        digest.update(b"\0")
+    return digest.hexdigest()[:10]
+
+
+def write_assets(target_dir: Path, assets: dict[str, str]) -> None:
+    """정적 자산을 대상 폴더에 쓴다. 내용이 같으면 건드리지 않는다."""
+    for name, text in assets.items():
+        target = target_dir / name
+        if target.exists() and target.read_text(encoding="utf-8") == text:
+            continue
+        atomic_write_text(target, text)
+
+
+def render_html(
+    payload: dict,
+    template_path: Path = TEMPLATE_PATH,
+    version: str = "",
+) -> str:
     template = template_path.read_text(encoding="utf-8")
     if PAYLOAD_PLACEHOLDER not in template:
         raise RuntimeError(f"그래프 템플릿에 {PAYLOAD_PLACEHOLDER} 자리표시자가 없습니다: {template_path}")
+
+    if not version:
+        try:
+            version = asset_version(load_assets(template_path.parent))
+        except OSError:
+            version = "0"
 
     payload_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     # JSON을 <script> 안에 넣을 때 </script>로 조기 종료되지 않게 한다.
@@ -170,7 +218,8 @@ def render_html(payload: dict, template_path: Path = TEMPLATE_PATH) -> str:
         .replace("\u2028", "\\u2028")
         .replace("\u2029", "\\u2029")
     )
-    return template.replace(PAYLOAD_PLACEHOLDER, payload_json)
+    html = template.replace(PAYLOAD_PLACEHOLDER, payload_json)
+    return html.replace(ASSET_VERSION_PLACEHOLDER, version)
 
 
 def write_graph(
@@ -182,5 +231,7 @@ def write_graph(
     repo_url: str = "",
 ) -> None:
     payload = build_payload(rows, active_items, source_url, repo_url)
-    html = render_html(payload, template_path)
+    assets = load_assets(template_path.parent)
+    write_assets(path.parent / ASSET_DIR_NAME, assets)
+    html = render_html(payload, template_path, asset_version(assets))
     atomic_write_text(path, html)

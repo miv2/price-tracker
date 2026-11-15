@@ -17,6 +17,8 @@ on:
       - history.csv
       - CHANGES.md
       - index.html
+      - assets/style.css
+      - assets/app.js
 
 permissions:
   contents: write
@@ -52,9 +54,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add prices.json history.csv CHANGES.md index.html
+          git add prices.json history.csv CHANGES.md index.html assets/style.css assets/app.js
           # prices.json의 updated_at만 바뀐 경우는 커밋하지 않는다.
-          if git diff --cached --quiet -- history.csv CHANGES.md index.html; then
+          if git diff --cached --quiet -- history.csv CHANGES.md index.html assets/style.css assets/app.js; then
             echo "가격 이력이 바뀌지 않아 커밋하지 않습니다."
           else
             git commit -m "chore: 가격 스냅샷 $(date -u +%F)"
