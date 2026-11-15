@@ -48,8 +48,11 @@ jobs:
       - name: 정적 타입 검사
         run: mypy tracker
 
-      - name: 테스트
+      - name: Python 단위 테스트
         run: python -m pytest -q
+
+      - name: JS 비즈니스 로직 테스트
+        run: node --test tests/test_app.js
 
       - name: 가격 수집·비교·그래프 생성
         run: python -m tracker

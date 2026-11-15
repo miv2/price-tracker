@@ -10,9 +10,10 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 from .history import group_by_item
-from .models import Item
+from .models import Item, PriceRow
 from .util import atomic_write_text
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -24,10 +25,12 @@ ASSET_NAMES = ("style.css", "app.js")
 ASSET_DIR_NAME = "assets"
 DATA_JS_NAME = "data.js"
 
+Payload = dict[str, Any]
+
 KIND_ORDER = {"decrease": 0, "increase": 1, "new": 2, "removed": 3}
 
 
-def build_recent_changes(rows: list[dict], items: list[dict]) -> dict:
+def build_recent_changes(rows: list[PriceRow], items: list[Payload]) -> Payload:
     """최근 두 수집일을 비교해 페이지 상단에 보여줄 변동 목록을 만든다.
 
     ``items``는 정렬된 페이로드 항목 목록이며, 각 변동에는 그 목록에서의 위치를
@@ -69,7 +72,7 @@ def build_recent_changes(rows: list[dict], items: list[dict]) -> dict:
             last_prices[key] = row["sale_price"]
 
     index = {(entry["category"], entry["name"]): i for i, entry in enumerate(items)}
-    changes: list[dict] = []
+    changes: list[Payload] = []
     for key in set(prev_prices) | set(last_prices):
         before = prev_prices.get(key)
         after = last_prices.get(key)
@@ -116,11 +119,11 @@ def build_recent_changes(rows: list[dict], items: list[dict]) -> dict:
 
 
 def build_payload(
-    rows: list[dict],
+    rows: list[PriceRow],
     active_items: list[Item],
     source_url: str,
     repo_url: str = "",
-) -> dict:
+) -> Payload:
     """그래프 페이지가 쓰는 JSON 데이터를 만든다.
 
     종료된 항목도 지난 이력을 볼 수 있도록 남기고 ``active``로 구분한다.
@@ -128,7 +131,7 @@ def build_payload(
     grouped = group_by_item(rows)
     active = {item.key: item for item in active_items}
 
-    items: list[dict] = []
+    items: list[Payload] = []
     for (category, name), points in grouped.items():
         prices = [price for _, price in points]
         all_time_low = min(prices)
@@ -198,7 +201,7 @@ def write_assets(target_dir: Path, assets: dict[str, str]) -> None:
         atomic_write_text(target, text)
 
 
-def serialize_payload(payload: dict) -> str:
+def serialize_payload(payload: Payload) -> str:
     """페이로드를 JSON 문자열로 직렬화한다."""
     payload_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     return (
@@ -209,7 +212,7 @@ def serialize_payload(payload: dict) -> str:
 
 
 def render_html(
-    payload: dict,
+    payload: Payload,
     template_path: Path = TEMPLATE_PATH,
     version: str = "",
     data_version: str = "",
@@ -235,7 +238,7 @@ def render_html(
 
 def write_graph(
     path: Path,
-    rows: list[dict],
+    rows: list[PriceRow],
     active_items: list[Item],
     source_url: str,
     template_path: Path = TEMPLATE_PATH,

@@ -27,7 +27,7 @@ class Config:
     repo_url: str = ""
 
 
-def _as_int(data: dict, key: str, default: int, minimum: int, maximum: int | None = None) -> int:
+def _as_int(data: dict[str, object], key: str, default: int, minimum: int, maximum: int | None = None) -> int:
     value = data.get(key, default)
     if isinstance(value, bool) or not isinstance(value, int):
         raise ConfigError(f"config.json의 '{key}' 값은 정수여야 합니다.")
@@ -37,7 +37,7 @@ def _as_int(data: dict, key: str, default: int, minimum: int, maximum: int | Non
     return value
 
 
-def _as_number(data: dict, key: str, default: float) -> float:
+def _as_number(data: dict[str, object], key: str, default: float) -> float:
     value = data.get(key, default)
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ConfigError(f"config.json의 '{key}' 값은 숫자여야 합니다.")

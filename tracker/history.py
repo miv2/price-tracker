@@ -8,7 +8,7 @@ from collections import defaultdict
 from datetime import date as calendar_date
 from pathlib import Path
 
-from .models import Item
+from .models import Item, PriceRow
 from .util import atomic_write_text
 
 FIELDNAMES = ("date", "category", "name", "sale_price")
@@ -18,12 +18,12 @@ class HistoryError(Exception):
     """기존 이력을 안전하게 읽을 수 없을 때 발생한다."""
 
 
-def load_history(path: Path) -> list[dict]:
+def load_history(path: Path) -> list[PriceRow]:
     """history.csv를 읽어 날짜 오름차순 행 목록으로 돌려준다."""
     if not path.exists():
         return []
 
-    rows: list[dict] = []
+    rows: list[PriceRow] = []
     try:
         with path.open("r", encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle, strict=True)
@@ -88,7 +88,7 @@ def record_snapshot(path: Path, date: str, items: list[Item]) -> bool:
     return True
 
 
-def group_by_item(rows: list[dict]) -> dict[tuple[str, str], list[tuple[str, int]]]:
+def group_by_item(rows: list[PriceRow]) -> dict[tuple[str, str], list[tuple[str, int]]]:
     """(카테고리, 시술명)별 날짜·가격 목록으로 묶는다. 같은 날짜는 마지막 값만 남긴다."""
     grouped: dict[tuple[str, str], dict[str, int]] = defaultdict(dict)
     for row in rows:

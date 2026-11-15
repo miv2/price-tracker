@@ -2,6 +2,7 @@ const DATA = (function () {
   if (typeof window !== "undefined" && window.__PRICE_DATA__) {
     return window.__PRICE_DATA__;
   }
+  if (typeof document === "undefined") return { items: [] };
   const node = document.getElementById("payload");
   if (!node) return { items: [] };
   try {
@@ -45,41 +46,52 @@ const DATA = (function () {
 
   const SORT_VALUES = ["category", "recent", "discount-desc", "price-desc", "price-asc", "name"];
 
-  function readUrlState() {
-    state.q = "";
-    state.category = "";
-    state.status = "active";
-    state.changedOnly = false;
-    state.sort = "category";
-    state.view = "cards";
-    state.pageSize = PAGE_SIZE;
-    const params = new URLSearchParams(window.location.search);
+  function parseUrlState(search) {
+    const next = {
+      q: "",
+      category: "",
+      status: "active",
+      changedOnly: false,
+      sort: "category",
+      view: "cards",
+      pageSize: PAGE_SIZE
+    };
+    const params = new URLSearchParams(search || "");
     const q = params.get("q");
-    if (q) state.q = q;
+    if (q) next.q = q;
     const category = params.get("category");
-    if (category) state.category = category;
+    if (category) next.category = category;
     const status = params.get("status");
-    if (status === "active" || status === "ended" || status === "all") state.status = status;
-    if (params.get("changed") === "1") state.changedOnly = true;
+    if (status === "active" || status === "ended" || status === "all") next.status = status;
+    if (params.get("changed") === "1") next.changedOnly = true;
     const sort = params.get("sort");
-    if (SORT_VALUES.indexOf(sort) !== -1) state.sort = sort;
-    if (params.get("view") === "table") state.view = "table";
+    if (SORT_VALUES.indexOf(sort) !== -1) next.sort = sort;
+    if (params.get("view") === "table") next.view = "table";
     const limit = params.get("limit");
-    if (limit === "all") state.pageSize = Infinity;
-    else if (limit === "100") state.pageSize = 100;
-    else if (limit === "40") state.pageSize = PAGE_SIZE;
+    if (limit === "all") next.pageSize = Infinity;
+    else if (limit === "100") next.pageSize = 100;
+    else if (limit === "40") next.pageSize = PAGE_SIZE;
+    return next;
+  }
+
+  function readUrlState() {
+    Object.assign(state, parseUrlState(window.location.search));
+  }
+
+  function buildQuery(current) {
+    const params = new URLSearchParams();
+    if (current.q) params.set("q", current.q);
+    if (current.category) params.set("category", current.category);
+    if (current.status !== "active") params.set("status", current.status);
+    if (current.changedOnly) params.set("changed", "1");
+    if (current.sort !== "category") params.set("sort", current.sort);
+    if (current.view !== "cards") params.set("view", "table");
+    if (current.pageSize !== PAGE_SIZE) params.set("limit", current.pageSize === Infinity ? "all" : String(current.pageSize));
+    return params.toString();
   }
 
   function syncUrl(push) {
-    const params = new URLSearchParams();
-    if (state.q) params.set("q", state.q);
-    if (state.category) params.set("category", state.category);
-    if (state.status !== "active") params.set("status", state.status);
-    if (state.changedOnly) params.set("changed", "1");
-    if (state.sort !== "category") params.set("sort", state.sort);
-    if (state.view !== "cards") params.set("view", "table");
-    if (state.pageSize !== PAGE_SIZE) params.set("limit", state.pageSize === Infinity ? "all" : String(state.pageSize));
-    const query = params.toString();
+    const query = buildQuery(state);
     const url = window.location.pathname + (query ? "?" + query : "") + window.location.hash;
     if (push) window.history.pushState(null, "", url);
     else window.history.replaceState(null, "", url);
@@ -591,7 +603,7 @@ const DATA = (function () {
       top.append(categoryLabel, prices);
       const name = document.createElement("span");
       name.className = "event-name";
-      const nameText = document.createElement("h4");
+      const nameText = document.createElement("span");
       nameText.className = "event-name-text";
       nameText.textContent = item.name;
       const openHint = document.createElement("span");
@@ -675,6 +687,21 @@ const DATA = (function () {
     button.setAttribute("aria-pressed", String(expanded));
   }
 
+  function groupItemsByBoundary(list, limit) {
+    // 카테고리 카드가 페이지 경계에서 쪼개지지 않도록 카테고리 단위로 자른다.
+    const groups = [];
+    let loaded = 0;
+    for (const item of list) {
+      const last = groups[groups.length - 1];
+      const sameCategory = last && last[0] === item.category;
+      if (!sameCategory && loaded >= limit) break;
+      if (sameCategory) last[1].push(item);
+      else groups.push([item.category, [item]]);
+      loaded += 1;
+    }
+    return groups;
+  }
+
   function renderTable(resetPaging) {
     if (resetPaging !== false) {
       displayLimit = state.pageSize;
@@ -689,17 +716,7 @@ const DATA = (function () {
     let pageItems;
     let groups = null;
     if (state.sort === "category") {
-      // 카테고리 카드가 페이지 경계에서 쪼개지지 않도록 카테고리 단위로 자른다.
-      groups = [];
-      let loaded = 0;
-      for (const item of currentFilteredList) {
-        const last = groups[groups.length - 1];
-        const sameCategory = last && last[0] === item.category;
-        if (!sameCategory && loaded >= displayLimit) break;
-        if (sameCategory) last[1].push(item);
-        else groups.push([item.category, [item]]);
-        loaded += 1;
-      }
+      groups = groupItemsByBoundary(currentFilteredList, displayLimit);
       pageItems = [];
       for (const group of groups) pageItems = pageItems.concat(group[1]);
     } else {
@@ -1189,6 +1206,37 @@ const DATA = (function () {
     syncUrl(true);
   }
 
+  // Node 테스트(node --test)에서 순수 로직을 검증할 수 있도록 DOM 없이도 내보낸다.
+  if (typeof document === "undefined") {
+    if (typeof module !== "undefined" && module.exports) {
+      module.exports = {
+        DATA,
+        PAGE_SIZE,
+        state,
+        changedIndexes,
+        matches,
+        sortItems,
+        compareName,
+        groupItemsByBoundary,
+        parseUrlState,
+        buildQuery,
+        discountRate,
+        currentPrice,
+        latestChange,
+        overallDelta,
+        min30,
+        isLow30,
+        trendColor,
+        niceStep,
+        axisLabel,
+        smoothLine,
+        won,
+        mmdd
+      };
+    }
+    return;
+  }
+
   $("loadMoreBtn").addEventListener("click", function () {
     displayLimit += state.pageSize;
     renderTable(false);
@@ -1207,6 +1255,11 @@ const DATA = (function () {
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
+  $("searchForm").addEventListener("submit", function (event) {
+    // Enter로 제출해도 페이지를 새로 읽지 않고 현재 필터 결과를 유지한다.
+    event.preventDefault();
+    $("q").blur();
+  });
   $("q").addEventListener("input", function (event) {
     window.clearTimeout(searchTimer);
     const value = event.target.value;

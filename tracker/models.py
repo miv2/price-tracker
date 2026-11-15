@@ -3,6 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TypedDict
+
+
+class PriceRow(TypedDict):
+    """history.csv의 한 행. 날짜별 할인가 기록."""
+
+    date: str
+    category: str
+    name: str
+    sale_price: int
 
 
 @dataclass(frozen=True)
@@ -24,7 +34,7 @@ class Item:
     def key(self) -> tuple[str, str]:
         return (self.category, self.name)
 
-    def to_json(self) -> dict:
+    def to_json(self) -> dict[str, object]:
         return {
             "category": self.category,
             "name": self.name,

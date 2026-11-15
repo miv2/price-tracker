@@ -161,10 +161,12 @@ def _changes_line(changes: ChangeSet) -> str:
 
 
 def _print_items(items: list[Item]) -> None:
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except (AttributeError, OSError):
-        pass
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is not None:
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except OSError:
+            pass
     print("카테고리\t시술명\t정가\t할인가")
     for item in sorted(items, key=lambda i: i.key):
         print(

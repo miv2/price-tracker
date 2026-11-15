@@ -115,7 +115,7 @@ def test_empty_history_payload():
     assert payload["recent"]["items"] == []
 
 
-def test_render_embeds_payload_and_escapes_script_close():
+def test_render_leaves_only_the_skeleton():
     payload = build_payload(
         [
             {
@@ -130,9 +130,38 @@ def test_render_embeds_payload_and_escapes_script_close():
     )
     html = render_html(payload)
     assert "가격 추이" in html
-    assert "</script><script>alert(1)" not in html
-    assert "<\\/script>" in html
     assert "__PAYLOAD__" not in html
+    assert "__ASSET_VERSION__" not in html
+    assert "__DATA_VERSION__" not in html
+    # 데이터는 HTML이 아니라 assets/data.js로 나간다.
+    assert "</script><script>alert(1)" not in html
+
+
+def test_data_js_escapes_script_close(tmp_path: Path):
+    rows = [
+        {
+            "date": "2026-11-13",
+            "category": "이벤트",
+            "name": "</script><script>alert(1)</script>",
+            "sale_price": 1_000,
+        }
+    ]
+    write_graph(tmp_path / "index.html", rows, [], "https://example.com/")
+    data_js = (tmp_path / "assets" / "data.js").read_text(encoding="utf-8")
+    assert "</script><script>alert(1)" not in data_js
+    assert "<\\/script>" in data_js
+    assert "window.__PRICE_DATA__=" in data_js
+
+
+def test_render_inlines_payload_for_legacy_template(tmp_path: Path):
+    template = tmp_path / "index.html"
+    template.write_text(
+        '<script type="application/json" id="payload">__PAYLOAD__</script>',
+        encoding="utf-8",
+    )
+    html = render_html({"items": [{"name": "</script>"}]}, template)
+    assert "__PAYLOAD__" not in html
+    assert "<\\/script>" in html
 
 
 def test_write_graph_creates_file(tmp_path: Path):
@@ -175,6 +204,8 @@ def test_write_graph_splits_static_assets(tmp_path: Path):
     assert f'href="assets/style.css?v={version}"' in html
     assert f'src="assets/app.js?v={version}"' in html
     assert 'src="assets/data.js?v=' in html
+    # 데이터가 app.js보다 먼저 실행되어야 window.__PRICE_DATA__가 준비된다.
+    assert html.index("assets/data.js") < html.index("assets/app.js")
 
 
 def test_asset_version_tracks_content():
