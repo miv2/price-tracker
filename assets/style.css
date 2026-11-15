@@ -213,7 +213,14 @@ details[open] .recent-head-left h2::after {
 .event-banner img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .event-banner.generic { display: flex; flex-direction: column; justify-content: center; padding: 20px 24px; background: linear-gradient(135deg, #f3d6db, #f7e5e7 65%, #e7c7ce); color: #183038; }
 .event-banner.generic span { font-size: 12px; font-weight: 800; letter-spacing: .3em; }
-.event-banner.generic strong { margin-top: 12px; font-size: clamp(22px, 2vw, 32px); line-height: 1.2; letter-spacing: -.07em; word-break: keep-all; }
+.event-banner.generic strong,
+.event-banner.generic .event-banner-title {
+  margin: 12px 0 0;
+  font-size: clamp(22px, 2vw, 32px);
+  line-height: 1.2;
+  letter-spacing: -.07em;
+  word-break: keep-all;
+}
 .event-card-body { display: flex; flex: 1; flex-direction: column; min-height: 270px; padding: 0 20px 16px; }
 .event-line { display: block; width: 100%; padding: 18px 0 12px; border: 0; border-bottom: 1px solid #d9d9d9; background: none; color: var(--text); text-align: left; font: inherit; cursor: pointer; }
 .event-line:hover .event-name, .event-line:focus-visible .event-name { color: var(--accent); }
@@ -224,7 +231,7 @@ details[open] .recent-head-left h2::after {
 .event-list-price { min-height: 18px; color: #a2a2a2; font-size: 14px; font-weight: 700; text-decoration: line-through; }
 .event-sale-price { color: #ed288b; font-size: 22px; font-weight: 800; letter-spacing: -.045em; }
 .event-name { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; min-height: 32px; margin-top: 17px; color: #737373; font-size: 13px; line-height: 1.45; }
-.event-name-text { min-width: 0; }
+.event-name-text { min-width: 0; margin: 0; font-size: inherit; font-weight: inherit; line-height: inherit; }
 .event-open { flex: none; color: #a2a2a2; font-size: 12px; font-weight: 800; line-height: 1.3; }
 .event-line:hover .event-open, .event-line:focus-visible .event-open { color: var(--accent); }
 .event-extra { display: block; margin-top: 3px; color: var(--accent); font-size: 11px; font-weight: 700; }
@@ -241,7 +248,7 @@ details[open] .recent-head-left h2::after {
 .event-compact-foot svg.spark { margin-left: auto; }
 @media (max-width: 1240px) { .event-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .event-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.search { position: relative; flex: 1 1 260px; }
+.search { position: relative; flex: 1 1 260px; margin: 0; }
 .search svg {
   position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
   width: 17px; height: 17px; color: var(--muted);
@@ -360,6 +367,7 @@ svg.spark { display: block; width: 104px; height: 28px; }
 }
 footer { color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); padding: 24px 0 44px; background: var(--panel); }
 footer p { margin: 4px 0; }
+.sheet-handle { display: none; }
 dialog {
   width: min(980px, calc(100vw - 28px));
   max-height: 92vh;
@@ -546,6 +554,14 @@ dialog::backdrop { background: rgba(12, 16, 24, .55); backdrop-filter: blur(2px)
   svg.spark { width: 84px; height: 24px; }
 
   /* 다이얼로그 모바일 바텀시트 스타일 */
+  .sheet-handle {
+    display: block;
+    width: 38px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--line);
+    margin: -6px auto 14px;
+  }
   dialog {
     width: 100vw;
     max-width: 100vw;

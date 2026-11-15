@@ -36,6 +36,7 @@ const DATA = (function () {
   let currentPageItems = [];
   let currentItem = null;
   let searchTimer = null;
+  let previousFocusElement = null;
 
   const $ = (id) => document.getElementById(id);
 
@@ -539,12 +540,15 @@ const DATA = (function () {
         const img = document.createElement("img");
         img.src = bannerFile;
         img.alt = category + " 이벤트 배너";
+        img.loading = "lazy";
+        img.decoding = "async";
         banner.appendChild(img);
       } else {
         banner.classList.add("generic");
         const label = document.createElement("span");
         label.textContent = "LIMITED EVENT";
-        const title = document.createElement("strong");
+        const title = document.createElement("h3");
+        title.className = "event-banner-title";
         title.textContent = category || "이벤트";
         banner.append(label, title);
       }
@@ -576,7 +580,7 @@ const DATA = (function () {
       top.append(categoryLabel, prices);
       const name = document.createElement("span");
       name.className = "event-name";
-      const nameText = document.createElement("span");
+      const nameText = document.createElement("h4");
       nameText.className = "event-name-text";
       nameText.textContent = item.name;
       const openHint = document.createElement("span");
@@ -792,7 +796,10 @@ const DATA = (function () {
     }
     tbody.appendChild(fragment);
 
+    previousFocusElement = document.activeElement;
     if (!dialog.open) dialog.showModal();
+    const closeBtn = $("chartClose");
+    if (closeBtn) closeBtn.focus();
     drawChart(item);
   }
 
@@ -1060,6 +1067,10 @@ const DATA = (function () {
   function closeDialog() {
     const dialog = $("chartDialog");
     if (dialog.open) dialog.close();
+    if (previousFocusElement && typeof previousFocusElement.focus === "function") {
+      previousFocusElement.focus();
+      previousFocusElement = null;
+    }
   }
 
   function resetFilters() {
@@ -1142,6 +1153,10 @@ const DATA = (function () {
   });
   $("resetFilters").addEventListener("click", resetFilters);
   $("chartClose").addEventListener("click", closeDialog);
+  $("chartDialog").addEventListener("cancel", function (event) {
+    event.preventDefault();
+    closeDialog();
+  });
   $("chartDialog").addEventListener("click", function (event) {
     if (event.target === $("chartDialog")) closeDialog();
   });

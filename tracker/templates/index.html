@@ -50,14 +50,14 @@
     <div><h2 id="catalogTitle">이벤트 전체보기</h2><p>수원점 공개 할인가 기준 · VAT 별도</p></div>
     <span class="result-count" id="count" aria-live="polite"></span>
   </div>
-  <div class="category-strip" id="categoryChips" role="group" aria-label="이벤트 카테고리"></div>
+  <nav class="category-strip" id="categoryChips" aria-label="이벤트 카테고리"></nav>
   <div class="toolbar" role="group" aria-labelledby="catalogTitle">
-    <label class="search">
+    <form class="search" role="search" onsubmit="event.preventDefault(); document.getElementById('q').blur();">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>
       </svg>
       <input id="q" type="search" placeholder="시술명·카테고리 검색 (예: 피코토닝)" autocomplete="off" aria-label="검색">
-    </label>
+    </form>
     <select id="statusFilter" aria-label="판매 상태">
       <option value="active">판매 중</option>
       <option value="ended">종료</option>
@@ -83,19 +83,19 @@
 
   <div class="event-grid" id="eventGrid" aria-label="시술별 이벤트 가격"></div>
   <div class="table-wrap" id="tableWrap" hidden>
-    <table>
+    <table role="table">
       <caption>시술별 이벤트 가격과 추이</caption>
-      <thead>
-        <tr>
-          <th scope="col">카테고리</th>
-          <th scope="col">시술명</th>
-          <th scope="col" class="num">현재가</th>
-          <th scope="col" class="num">최근 변동</th>
-          <th scope="col" class="num">최저 / 최고</th>
-          <th scope="col">추이</th>
+      <thead role="rowgroup">
+        <tr role="row">
+          <th scope="col" role="columnheader">카테고리</th>
+          <th scope="col" role="columnheader">시술명</th>
+          <th scope="col" role="columnheader" class="num">현재가</th>
+          <th scope="col" role="columnheader" class="num">최근 변동</th>
+          <th scope="col" role="columnheader" class="num">최저 / 최고</th>
+          <th scope="col" role="columnheader">추이</th>
         </tr>
       </thead>
-      <tbody id="rows"></tbody>
+      <tbody id="rows" role="rowgroup"></tbody>
     </table>
   </div>
   <div class="empty" id="empty" hidden>
@@ -118,6 +118,7 @@
 </footer>
 
 <dialog id="chartDialog" aria-labelledby="chartName">
+  <div class="sheet-handle" aria-hidden="true"></div>
   <div class="dialog-head">
     <div>
       <p class="eyebrow" id="chartCat"></p>
