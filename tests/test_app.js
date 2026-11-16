@@ -341,19 +341,15 @@ test("axisLabel() - 만 단위와 천 단위 구분자를 적용한다", () => {
   assert.equal(app.axisLabel(15000), "1.5만");
   assert.equal(app.axisLabel(100000), "10만");
   assert.equal(app.axisLabel(1000000), "100만");
+  assert.equal(app.axisLabel(1025000), "102.5만");
   assert.equal(app.axisLabel(5000), "5,000");
   assert.equal(app.axisLabel(0), "0");
 });
 
-test("smoothLine() - 유한한 좌표로 곡선 경로를 만든다", () => {
-  const path = app.smoothLine([[0, 10], [10, 20], [20, 15]]);
-  assert.ok(path.startsWith("M0,10"));
-  assert.equal(path.includes("NaN"), false);
-  assert.equal((path.match(/C/g) || []).length, 2);
-
-  const two = app.smoothLine([[0, 0], [10, 5]]);
-  assert.ok(two.startsWith("M0,0"));
-  assert.equal(two.includes("NaN"), false);
+test("withAlpha() - 브랜드 색상을 투명도 있는 rgba로 바꾼다", () => {
+  assert.equal(app.withAlpha("#cb3f70", 0.5), "rgba(203, 63, 112, 0.5)");
+  assert.equal(app.withAlpha("#fff", 0.2), "rgba(255, 255, 255, 0.2)");
+  assert.equal(app.withAlpha("rgb(1,2,3)", 0.5), "rgb(1,2,3)");
 });
 
 test("won()/mmdd() - 금액과 날짜 표기를 맞춘다", () => {

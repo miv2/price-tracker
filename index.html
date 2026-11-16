@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#ffffff">
 <link rel="icon" href="data:,">
 <title>피부과 가격 추적기 · 유앤아이의원 수원점</title>
-<link rel="stylesheet" href="assets/style.css?v=620d33e97c">
+<link rel="stylesheet" href="assets/style.css?v=6ff75544be">
 </head>
 <body>
 <div class="site-strip">YOU<span>&amp;</span>I <strong>SUWON</strong> · EVENT PRICE TRACKER</div>
@@ -128,7 +128,7 @@
     <button class="icon-btn" id="chartClose" type="button" aria-label="닫기">×</button>
   </div>
   <div class="chart-meta" id="chartMeta"></div>
-  <div class="chart-holder"><svg id="chartSvg" role="img" aria-label="가격 추이 그래프"></svg></div>
+  <div class="chart-holder"><div class="chart-frame"><canvas id="chartCanvas" role="img" aria-label="가격 추이 그래프"></canvas></div></div>
   <div class="points">
     <div class="points-scroll">
       <table>
@@ -142,7 +142,8 @@
   </div>
 </dialog>
 
+<script src="assets/vendor/chart.umd.min.js?v=6ff75544be"></script>
 <script src="assets/data.js?v=07dbe133ff"></script>
-<script src="assets/app.js?v=620d33e97c"></script>
+<script src="assets/app.js?v=6ff75544be"></script>
 </body>
 </html>

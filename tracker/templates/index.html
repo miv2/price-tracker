@@ -128,7 +128,7 @@
     <button class="icon-btn" id="chartClose" type="button" aria-label="닫기">×</button>
   </div>
   <div class="chart-meta" id="chartMeta"></div>
-  <div class="chart-holder"><svg id="chartSvg" role="img" aria-label="가격 추이 그래프"></svg></div>
+  <div class="chart-holder"><div class="chart-frame"><canvas id="chartCanvas" role="img" aria-label="가격 추이 그래프"></canvas></div></div>
   <div class="points">
     <div class="points-scroll">
       <table>
@@ -142,6 +142,7 @@
   </div>
 </dialog>
 
+<script src="assets/vendor/chart.umd.min.js?v=__ASSET_VERSION__"></script>
 <script src="assets/data.js?v=__DATA_VERSION__"></script>
 <script src="assets/app.js?v=__ASSET_VERSION__"></script>
 </body>

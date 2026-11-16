@@ -38,7 +38,6 @@ const DATA = (function () {
   const expandedCategories = new Set();
   let currentFilteredList = [];
   let currentPageItems = [];
-  let currentItem = null;
   let searchTimer = null;
   let previousFocusElement = null;
 
@@ -169,8 +168,25 @@ const DATA = (function () {
 
   function trendColor(item) {
     const d = overallDelta(item);
-    if (d === 0) return COLORS.flat;
-    return d < 0 ? COLORS.down : COLORS.up;
+    if (d === 0) return cssVar("--flat") || COLORS.flat;
+    return d < 0 ? (cssVar("--down") || COLORS.down) : (cssVar("--up") || COLORS.up);
+  }
+
+  function cssVar(name) {
+    // Node 테스트에서는 DOM이 없으므로 빈 문자열을 돌려주고 호출부가 기본값을 쓴다.
+    if (typeof document === "undefined" || !document.documentElement) return "";
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function withAlpha(color, alpha) {
+    if (typeof color !== "string" || color.charAt(0) !== "#") return color;
+    const hex = color.slice(1);
+    const full = hex.length === 3
+      ? hex.split("").map(function (c) { return c + c; }).join("")
+      : hex;
+    const num = parseInt(full, 16);
+    if (Number.isNaN(num)) return color;
+    return "rgba(" + ((num >> 16) & 255) + ", " + ((num >> 8) & 255) + ", " + (num & 255) + ", " + alpha + ")";
   }
 
   function el(name, attrs) {
@@ -178,15 +194,6 @@ const DATA = (function () {
     if (attrs) {
       for (const key of Object.keys(attrs)) node.setAttribute(key, attrs[key]);
     }
-    return node;
-  }
-
-  function svgText(x, y, text, extra) {
-    const node = el("text", Object.assign({
-      x: x, y: y, fill: "currentColor",
-      "font-size": "11", "font-family": "inherit"
-    }, extra || {}));
-    node.textContent = text;
     return node;
   }
 
@@ -764,7 +771,6 @@ const DATA = (function () {
   }
 
   function openChart(item) {
-    currentItem = item;
     const dialog = $("chartDialog");
     const last = item.points[item.points.length - 1];
     const first = item.points[0];
@@ -841,8 +847,8 @@ const DATA = (function () {
 
   function axisLabel(value) {
     if (value >= 10000) {
-      const man = value / 10000;
-      return (man >= 100 ? Math.round(man) : Math.round(man * 10) / 10) + "만";
+      const man = Math.round((value / 10000) * 10) / 10;
+      return man + "만";
     }
     return fmt(Math.round(value));
   }
@@ -859,44 +865,170 @@ const DATA = (function () {
     return factor * magnitude;
   }
 
-  function smoothLine(coords) {
-    let d = "M" + coords[0][0] + "," + coords[0][1];
-    for (let i = 0; i < coords.length - 1; i += 1) {
-      const p0 = coords[i - 1] || coords[i];
-      const p1 = coords[i];
-      const p2 = coords[i + 1];
-      const p3 = coords[i + 2] || p2;
-      const t = 0.18;
-      const low = Math.min(p1[1], p2[1]);
-      const high = Math.max(p1[1], p2[1]);
-      const c1y = Math.min(high, Math.max(low, p1[1] + (p2[1] - p0[1]) * t));
-      const c2y = Math.min(high, Math.max(low, p2[1] - (p3[1] - p1[1]) * t));
-      d += " C" + (p1[0] + (p2[0] - p0[0]) * t) + "," + c1y +
-        " " + (p2[0] - (p3[0] - p1[0]) * t) + "," + c2y +
-        " " + p2[0] + "," + p2[1];
-    }
-    return d;
+  const CHART_FONT = "system-ui, -apple-system, 'Segoe UI', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif";
+
+  function prefersReducedMotion() {
+    return typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 
-  function drawChart(item) {
-    const svg = $("chartSvg");
-    svg.textContent = "";
-    const points = item.points;
-    const compact = window.innerWidth < 620;
-    const width = Math.max(300, Math.floor(svg.clientWidth || 860));
-    const height = compact ? 260 : 330;
-    const pad = { l: compact ? 42 : 54, r: compact ? 18 : 26, t: 34, b: 40 };
-    const innerW = width - pad.l - pad.r;
-    const innerH = height - pad.t - pad.b;
-    svg.setAttribute("viewBox", "0 0 " + width + " " + height);
-    svg.style.color = "var(--muted)";
+  function roundedRect(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.arcTo(x + width, y, x + width, y + height, radius);
+    ctx.arcTo(x + width, y + height, x, y + height, radius);
+    ctx.arcTo(x, y + height, x, y, radius);
+    ctx.arcTo(x, y, x + width, y, radius);
+    ctx.closePath();
+  }
 
-    const values = points.map((p) => p[1]);
+  // 마지막 가격을 강조하는 말풍선
+  const lastValuePill = {
+    id: "lastValuePill",
+    afterDatasetsDraw: function (chart, args, options) {
+      if (!options || !options.text) return;
+      const meta = chart.getDatasetMeta(0);
+      const point = meta && meta.data[meta.data.length - 1];
+      const area = chart.chartArea;
+      if (!point || !area) return;
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.font = "700 11.5px " + CHART_FONT;
+      const width = ctx.measureText(options.text).width + 18;
+      const height = 22;
+      const x = Math.min(Math.max(point.x - width / 2, area.left), area.right - width);
+      let y = point.y - height - 10;
+      if (y < area.top - 2) y = point.y + 12;
+      roundedRect(ctx, x, y, width, height, 11);
+      ctx.fillStyle = options.color;
+      ctx.shadowColor = "rgba(0, 0, 0, .18)";
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 3;
+      ctx.fill();
+      ctx.shadowColor = "transparent";
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(options.text, x + width / 2, y + height / 2 + 0.5);
+      ctx.restore();
+    }
+  };
+
+  // 역대 최저·평균 참조선의 왼쪽 라벨
+  const refLabels = {
+    id: "refLabels",
+    afterDatasetsDraw: function (chart) {
+      const area = chart.chartArea;
+      if (!area) return;
+      const ctx = chart.ctx;
+      const drawn = [];
+      chart.data.datasets.forEach(function (dataset, index) {
+        if (!dataset.refLabel) return;
+        const meta = chart.getDatasetMeta(index);
+        const point = meta.data[meta.data.length - 1];
+        if (!point) return;
+        const x = area.left + 8;
+        const y = point.y - 5;
+        // 두 참조선이 가까우면 라벨이 겹치므로 뒤쪽 라벨은 생략한다(위 배지에 값이 있음).
+        if (drawn.some(function (otherY) { return Math.abs(otherY - y) < 14; })) return;
+        drawn.push(y);
+        ctx.save();
+        ctx.font = "700 10px " + CHART_FONT;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+        // 선과 겹쳐도 읽히도록 밝은 테두리를 먼저 그린다.
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(255, 255, 255, .9)";
+        ctx.strokeText(dataset.refLabel, x, y);
+        ctx.fillStyle = dataset.refColor;
+        ctx.fillText(dataset.refLabel, x, y);
+        ctx.restore();
+      });
+    }
+  };
+
+  // 툴팁이 열렸을 때 세로 안내선
+  const crosshair = {
+    id: "crosshair",
+    afterDatasetsDraw: function (chart) {
+      const active = chart.tooltip && chart.tooltip.getActiveElements
+        ? chart.tooltip.getActiveElements()
+        : [];
+      if (!active.length || !chart.chartArea) return;
+      const point = active[0].element;
+      const area = chart.chartArea;
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.beginPath();
+      ctx.setLineDash([3, 4]);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(128, 122, 125, .45)";
+      ctx.moveTo(point.x, area.top);
+      ctx.lineTo(point.x, area.bottom);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+
+  // 가격이 한 번도 변하지 않았을 때의 안내 문구
+  const flatNotice = {
+    id: "flatNotice",
+    afterDatasetsDraw: function (chart, args, options) {
+      if (!options || !options.text || !chart.chartArea) return;
+      const area = chart.chartArea;
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.font = "600 11.5px " + CHART_FONT;
+      ctx.fillStyle = cssVar("--muted") || "#807a7d";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(options.text, (area.left + area.right) / 2, area.top - 4);
+      ctx.restore();
+    }
+  };
+
+  let chartInstance = null;
+
+  function drawChart(item) {
+    const canvas = $("chartCanvas");
+    if (!canvas) return;
+    const points = item.points;
+    const labels = points.map(function (p) { return p[0]; });
+    const values = points.map(function (p) { return p[1]; });
+    const first = points[0];
+    const last = points[points.length - 1];
     const rawMin = Math.min.apply(null, values);
     const rawMax = Math.max.apply(null, values);
+    const flat = rawMin === rawMax;
+
+    canvas.setAttribute("aria-label",
+      item.name + " 가격 추이: " + first[0] + " " + won(first[1]) + "에서 " +
+      last[0] + " " + won(last[1]) + ", 최저 " + won(rawMin) + ", 최고 " + won(rawMax));
+
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+    if (typeof Chart === "undefined") {
+      // 차트 라이브러리를 못 불러와도 아래 가격 표는 그대로 볼 수 있게 한다.
+      canvas.hidden = true;
+      return;
+    }
+    canvas.hidden = false;
+
+    const compact = window.innerWidth < 620;
+    const color = trendColor(item);
+    const flatColor = cssVar("--flat") || COLORS.flat;
+    const palette = {
+      muted: cssVar("--muted") || "#807a7d",
+      panel: cssVar("--panel") || "#ffffff",
+      down: cssVar("--down") || COLORS.down,
+      up: cssVar("--up") || COLORS.up
+    };
+
     let min = rawMin;
     let max = rawMax;
-    if (rawMin === rawMax) {
+    if (flat) {
       const margin = Math.max(1000, Math.round(rawMax * 0.06));
       min = Math.max(0, rawMin - margin);
       max = rawMax + margin;
@@ -905,293 +1037,165 @@ const DATA = (function () {
       min = Math.max(0, rawMin - margin);
       max = rawMax + margin;
     }
-    const span0 = max - min || 1;
-    const step = niceStep(span0, compact ? 4 : 5);
+    const step = niceStep(max - min || 1, compact ? 4 : 5);
     min = Math.max(0, Math.floor(min / step) * step);
     max = Math.ceil(max / step) * step;
     if (max <= min) max = min + step;
-    const span = max - min || 1;
-    const stepX = points.length > 1 ? innerW / (points.length - 1) : 0;
-    const x = (i) => (points.length > 1 ? pad.l + i * stepX : pad.l + innerW / 2);
-    const y = (value) => pad.t + innerH - ((value - min) / span) * innerH;
-    const baseY = pad.t + innerH;
-    const color = trendColor(item);
 
-    const defs = el("defs");
+    const datasets = [{
+      label: item.name,
+      data: values,
+      order: 1,
+      borderColor: color,
+      borderWidth: 2.6,
+      cubicInterpolationMode: "monotone",
+      fill: true,
+      backgroundColor: function (context) {
+        const area = context.chart.chartArea;
+        if (!area) return withAlpha(color, 0.12);
+        const gradient = context.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+        gradient.addColorStop(0, withAlpha(color, 0.26));
+        gradient.addColorStop(0.62, withAlpha(color, 0.07));
+        gradient.addColorStop(1, withAlpha(color, 0));
+        return gradient;
+      },
+      pointBackgroundColor: values.map(function (_, i) {
+        return i === values.length - 1 ? color : palette.panel;
+      }),
+      pointBorderColor: values.map(function (price, i) {
+        if (i === 0) return flatColor;
+        if (price > values[i - 1]) return palette.up;
+        if (price < values[i - 1]) return palette.down;
+        return flatColor;
+      }),
+      pointBorderWidth: values.map(function (_, i) {
+        return i === values.length - 1 ? 2.4 : 1.8;
+      }),
+      pointRadius: values.map(function (_, i) {
+        return i === values.length - 1 ? 5.5 : 3.6;
+      }),
+      pointHoverRadius: 7,
+      pointHoverBorderWidth: 2.6,
+      pointHitRadius: 16
+    }];
 
-    // 에어리어 그라디언트
-    const grad = el("linearGradient", { id: "chartAreaGrad", x1: "0", y1: "0", x2: "0", y2: "1" });
-    grad.appendChild(el("stop", { offset: "0%", "stop-color": color, "stop-opacity": "0.30" }));
-    grad.appendChild(el("stop", { offset: "65%", "stop-color": color, "stop-opacity": "0.06" }));
-    grad.appendChild(el("stop", { offset: "100%", "stop-color": color, "stop-opacity": "0" }));
-    defs.appendChild(grad);
-
-    // 라인 소프트 글로우 그림자
-    const glow = el("filter", { id: "chartGlow", x: "-10%", y: "-10%", width: "125%", height: "135%" });
-    glow.appendChild(el("feDropShadow", {
-      dx: "0", dy: "4", stdDeviation: "4", "flood-color": color, "flood-opacity": "0.32"
-    }));
-    defs.appendChild(glow);
-
-    // 툴팁 팝업 카드 그림자
-    const tipShadow = el("filter", { id: "tipShadow", x: "-20%", y: "-20%", width: "140%", height: "140%" });
-    tipShadow.appendChild(el("feDropShadow", {
-      dx: "0", dy: "5", stdDeviation: "8", "flood-color": "#000", "flood-opacity": "0.14"
-    }));
-    defs.appendChild(tipShadow);
-
-    svg.appendChild(defs);
-
-    // 배경 가로 격자선 및 Y축 눈금
-    for (let value = min; value <= max + step / 2; value += step) {
-      const gy = y(value);
-      const isBase = value === min;
-      svg.appendChild(el("line", {
-        x1: pad.l, x2: width - pad.r, y1: gy, y2: gy,
-        stroke: "currentColor", "stroke-opacity": isBase ? "0.28" : "0.11",
-        "stroke-width": "1", "stroke-dasharray": isBase ? "" : "3 6"
-      }));
-      svg.appendChild(svgText(pad.l - 8, gy + 3.5, axisLabel(value), {
-        "text-anchor": "end", "font-size": "10.5", "font-weight": isBase ? "600" : "400", "fill-opacity": isBase ? "0.85" : "0.65"
-      }));
+    if (!flat) {
+      if (item.all_time_low !== undefined) {
+        datasets.push({
+          label: "역대 최저",
+          data: values.map(function () { return item.all_time_low; }),
+          order: 0,
+          borderColor: palette.down,
+          borderWidth: 1.2,
+          borderDash: [2, 4],
+          pointRadius: 0,
+          pointHitRadius: 0,
+          fill: false,
+          refLabel: "★ 역대 최저",
+          refColor: palette.down
+        });
+      }
+      if (item.avg_price !== undefined && points.length > 1) {
+        datasets.push({
+          label: "평균",
+          data: values.map(function () { return item.avg_price; }),
+          order: 0,
+          borderColor: palette.muted,
+          borderWidth: 1.1,
+          borderDash: [5, 4],
+          pointRadius: 0,
+          pointHitRadius: 0,
+          fill: false,
+          refLabel: "평균 " + won(item.avg_price),
+          refColor: palette.muted
+        });
+      }
     }
 
-    // 참조선 (역대 최저 / 평균가)
-    function refLine(value, label, stroke, dash, atStart) {
-      if (value === null || value === undefined || value < min || value > max) return;
-      const gy = y(value);
-      svg.appendChild(el("line", {
-        x1: pad.l, x2: width - pad.r, y1: gy, y2: gy,
-        stroke: stroke, "stroke-opacity": "0.55", "stroke-width": "1.2", "stroke-dasharray": dash
-      }));
-      svg.appendChild(svgText(atStart ? pad.l + 6 : width - pad.r - 4, gy - 6, label, {
-        "text-anchor": atStart ? "start" : "end",
-        "font-size": "10", "font-weight": "700", fill: stroke, "fill-opacity": "0.95",
-        "paint-order": "stroke", stroke: "var(--panel)", "stroke-width": "3", "stroke-linejoin": "round"
-      }));
-    }
-
-    if (rawMin !== rawMax) {
-      if (item.all_time_low !== undefined) refLine(item.all_time_low, "★ 역대 최저", COLORS.down, "2 4", true);
-      if (item.avg_price !== undefined && points.length > 1) refLine(item.avg_price, "평균 " + won(item.avg_price), "currentColor", "5 4", false);
-    }
-
-    const coords = points.map((p, i) => [x(i), y(p[1])]);
-
-    if (rawMin === rawMax) {
-      svg.appendChild(svgText(pad.l + innerW / 2, y(rawMin) - 18, "수집 이래 가격 변동 없음 · " + points.length + "일 기록", {
-        "text-anchor": "middle", "font-size": "11.5", "font-weight": "600", "fill-opacity": "0.7"
-      }));
-    }
-
-    // 곡선 에어리어 및 메인 라인
-    if (coords.length > 1) {
-      const line = smoothLine(coords);
-      svg.appendChild(el("path", {
-        d: line + " L" + coords[coords.length - 1][0] + "," + baseY +
-          " L" + coords[0][0] + "," + baseY + " Z",
-        fill: "url(#chartAreaGrad)", stroke: "none"
-      }));
-      svg.appendChild(el("path", {
-        d: line, fill: "none", stroke: color, "stroke-width": "2.8",
-        filter: "url(#chartGlow)",
-        "stroke-linecap": "round", "stroke-linejoin": "round"
-      }));
-    }
-
-    // X축 날짜 눈금
-    const xTickCount = Math.min(compact ? 4 : 6, points.length);
-    const xIndexes = [];
-    for (let i = 0; i < xTickCount; i += 1) {
-      xIndexes.push(xTickCount === 1 ? 0 : Math.round((i * (points.length - 1)) / (xTickCount - 1)));
-    }
-    Array.from(new Set(xIndexes)).forEach(function (index) {
-      const isLast = index === points.length - 1;
-      svg.appendChild(svgText(x(index), height - pad.b + 20, mmdd(points[index][0]), {
-        "text-anchor": "middle", "font-size": "10.5",
-        "font-weight": isLast ? "700" : "500", "fill-opacity": isLast ? "1" : "0.75"
-      }));
-    });
-
-    // 최저가 점 하이라이트 링
-    if (rawMin !== rawMax && item.all_time_low !== undefined) {
-      coords.forEach(function (coord, i) {
-        if (points[i][1] === rawMin) {
-          svg.appendChild(el("circle", {
-            cx: coord[0], cy: coord[1], r: "8",
-            fill: "none", stroke: COLORS.down, "stroke-width": "1.4", "stroke-dasharray": "2 2"
-          }));
+    chartInstance = new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        resizeDelay: 120,
+        interaction: { mode: "index", intersect: false },
+        layout: { padding: { top: 26, right: 6, bottom: 2 } },
+        animation: prefersReducedMotion() ? false : { duration: 520, easing: "easeOutQuart" },
+        scales: {
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: {
+              color: palette.muted,
+              font: { size: 10.5 },
+              maxRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: compact ? 4 : 6,
+              callback: function (value) {
+                return mmdd(this.getLabelForValue(value));
+              }
+            }
+          },
+          y: {
+            min: min,
+            max: max,
+            grid: { color: "rgba(128, 122, 125, .16)", drawTicks: false },
+            border: { display: false },
+            ticks: {
+              stepSize: step,
+              padding: 6,
+              color: palette.muted,
+              font: { size: 10.5 },
+              callback: function (value) { return axisLabel(value); }
+            }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            filter: function (entry) { return entry.datasetIndex === 0; },
+            backgroundColor: "rgba(36, 33, 36, .94)",
+            titleColor: "#f4eef1",
+            bodyColor: "#ffffff",
+            titleFont: { size: 11, weight: "600" },
+            bodyFont: { size: 13, weight: "700" },
+            padding: 10,
+            cornerRadius: 10,
+            caretSize: 6,
+            caretPadding: 8,
+            displayColors: false,
+            titleMarginBottom: 3,
+            callbacks: {
+              title: function (entries) { return entries.length ? entries[0].label : ""; },
+              label: function (entry) { return won(entry.parsed.y); },
+              afterLabel: function (entry) {
+                const index = entry.dataIndex;
+                if (index === 0) return "첫 기록";
+                const prev = values[index - 1];
+                const diff = entry.parsed.y - prev;
+                if (diff === 0) return "변동 없음";
+                const pct = prev ? (Math.abs(diff) / prev) * 100 : 0;
+                return (diff > 0 ? "▲ +" : "▼ -") + fmt(Math.abs(diff)) + "원 (" +
+                  (diff > 0 ? "+" : "-") + pct.toFixed(1) + "%)";
+              }
+            }
+          },
+          lastValuePill: { text: won(last[1]), color: color },
+          flatNotice: { text: flat ? "수집 이래 가격 변동 없음 · " + points.length + "일 기록" : "" }
         }
-      });
-    }
-
-    // 최신 포인트 펄스 링
-    const lastCoord = coords[coords.length - 1];
-    svg.appendChild(el("circle", {
-      cx: lastCoord[0], cy: lastCoord[1], r: "8",
-      fill: "none", stroke: color, "class": "chart-pulse"
-    }));
-
-    // 데이터 포인트들 (외곽 링 + 중심 코어)
-    coords.forEach(function (coord, i) {
-      const lastIndex = i === coords.length - 1;
-      let dotColor = COLORS.flat;
-      if (i > 0) {
-        const diff = points[i][1] - points[i - 1][1];
-        if (diff > 0) dotColor = COLORS.up;
-        else if (diff < 0) dotColor = COLORS.down;
-      }
-      svg.appendChild(el("circle", {
-        cx: coord[0], cy: coord[1], r: lastIndex ? "5.5" : "4",
-        fill: "var(--panel)", stroke: lastIndex ? color : dotColor,
-        "stroke-width": lastIndex ? "2.6" : "1.8"
-      }));
-      svg.appendChild(el("circle", {
-        cx: coord[0], cy: coord[1], r: lastIndex ? "2.8" : "2",
-        fill: lastIndex ? color : dotColor
-      }));
-      const title = el("title");
-      title.textContent = points[i][0] + " · " + won(points[i][1]);
-      svg.appendChild(title);
+      },
+      plugins: [lastValuePill, crosshair, refLabels, flatNotice]
     });
-
-    // 최신 가격 말풍선 핀 (Pill)
-    const lastText = won(points[points.length - 1][1]);
-    const pillW = lastText.length * 6.8 + 18;
-    const pillH = 22;
-    const pillX = Math.min(Math.max(lastCoord[0] - pillW / 2, pad.l), width - pad.r - pillW);
-    let pillY = lastCoord[1] - pillH - 12;
-    if (pillY < pad.t - 6) pillY = lastCoord[1] + 12;
-    svg.appendChild(el("rect", {
-      x: pillX, y: pillY, width: pillW, height: pillH, rx: "11",
-      fill: color, filter: "url(#chartGlow)"
-    }));
-    svg.appendChild(svgText(pillX + pillW / 2, pillY + 15, lastText, {
-      "text-anchor": "middle", "font-size": "11.5", "font-weight": "700", fill: "#fff"
-    }));
-
-    const first = points[0];
-    const lastPoint = points[points.length - 1];
-    svg.setAttribute("aria-label",
-      item.name + " 가격 추이: " + first[0] + " " + won(first[1]) + "에서 " +
-      lastPoint[0] + " " + won(lastPoint[1]) + ", 최저 " + won(rawMin) + ", 최고 " + won(rawMax));
-
-    // 호버 & 터치 스크러빙 인터랙션
-    const hover = el("g", { opacity: "0", "pointer-events": "none" });
-    const hoverLine = el("line", {
-      y1: pad.t, y2: baseY, stroke: "currentColor", "stroke-opacity": "0.35",
-      "stroke-width": "1.2", "stroke-dasharray": "3 4"
-    });
-    const hoverHalo = el("circle", { r: "9", fill: color, "fill-opacity": "0.2" });
-    const hoverDot = el("circle", { r: "4.8", fill: "var(--panel)", stroke: color, "stroke-width": "2.4" });
-    const tip = el("g");
-    const tipRect = el("rect", { rx: "9", fill: "var(--panel)", stroke: "var(--line)", "stroke-width": "1", filter: "url(#tipShadow)" });
-    const tipDate = svgText(0, 0, "", { "font-size": "10.5", "font-weight": "600", "fill-opacity": "0.7" });
-    const tipPrice = svgText(0, 0, "", { "font-size": "13", "font-weight": "800", fill: "var(--text)" });
-    const tipDelta = svgText(0, 0, "", { "font-size": "11", "font-weight": "700" });
-    tip.append(tipRect, tipDate, tipPrice, tipDelta);
-    hover.append(hoverLine, hoverHalo, hoverDot, tip);
-    svg.appendChild(hover);
-
-    const overlay = el("rect", {
-      x: pad.l - 6, y: pad.t - 6, width: innerW + 12, height: innerH + 12,
-      fill: "transparent", "pointer-events": "all", style: "cursor: crosshair; touch-action: none;"
-    });
-    svg.appendChild(overlay);
-
-    function measureText(node, text) {
-      try {
-        return node.getComputedTextLength();
-      } catch (error) {
-        return text.length * 6.6;
-      }
-    }
-
-    function showAt(index) {
-      const point = points[index];
-      const cx = x(index);
-      const cy = y(point[1]);
-      hoverLine.setAttribute("x1", cx);
-      hoverLine.setAttribute("x2", cx);
-      hoverHalo.setAttribute("cx", cx);
-      hoverHalo.setAttribute("cy", cy);
-      hoverDot.setAttribute("cx", cx);
-      hoverDot.setAttribute("cy", cy);
-      hover.setAttribute("opacity", "1");
-
-      tipDate.textContent = point[0];
-      tipPrice.textContent = won(point[1]);
-
-      let deltaStr = "첫 기록";
-      let deltaColor = "var(--muted)";
-      if (index > 0) {
-        const prev = points[index - 1][1];
-        const diff = point[1] - prev;
-        if (diff === 0) {
-          deltaStr = "변동 없음";
-          deltaColor = "var(--flat)";
-        } else {
-          const pct = prev ? ((Math.abs(diff) / prev) * 100).toFixed(1) : "0";
-          const sign = diff > 0 ? "+" : "-";
-          deltaStr = (diff > 0 ? "▲ " : "▼ ") + sign + fmt(Math.abs(diff)) + "원 (" + sign + pct + "%)";
-          deltaColor = diff > 0 ? COLORS.up : COLORS.down;
-        }
-      }
-      tipDelta.textContent = deltaStr;
-      tipDelta.setAttribute("fill", deltaColor);
-
-      const maxTextW = Math.max(
-        measureText(tipDate, tipDate.textContent),
-        measureText(tipPrice, tipPrice.textContent),
-        measureText(tipDelta, deltaStr)
-      );
-      const tipW = Math.max(110, maxTextW + 24);
-      const tipH = 56;
-      const tipX = Math.min(Math.max(cx - tipW / 2, pad.l), width - pad.r - tipW);
-      let tipY = cy - tipH - 14;
-      if (tipY < pad.t - 8) tipY = cy + 14;
-
-      tipRect.setAttribute("x", tipX);
-      tipRect.setAttribute("y", tipY);
-      tipRect.setAttribute("width", tipW);
-      tipRect.setAttribute("height", tipH);
-      tipDate.setAttribute("x", tipX + 11);
-      tipDate.setAttribute("y", tipY + 16);
-      tipPrice.setAttribute("x", tipX + 11);
-      tipPrice.setAttribute("y", tipY + 33);
-      tipDelta.setAttribute("x", tipX + 11);
-      tipDelta.setAttribute("y", tipY + 48);
-    }
-
-    function handlePointer(event) {
-      const rect = svg.getBoundingClientRect();
-      if (!rect.width) return;
-      const scale = width / rect.width;
-      const px = (event.clientX - rect.left) * scale;
-      const index = points.length > 1 ? Math.round((px - pad.l) / stepX) : 0;
-      showAt(Math.min(Math.max(index, 0), points.length - 1));
-    }
-
-    overlay.addEventListener("pointerdown", function (event) {
-      if (overlay.setPointerCapture) {
-        try { overlay.setPointerCapture(event.pointerId); } catch (_) {}
-      }
-      handlePointer(event);
-    });
-    overlay.addEventListener("pointermove", handlePointer);
-    overlay.addEventListener("pointerup", function (event) {
-      if (overlay.releasePointerCapture) {
-        try { overlay.releasePointerCapture(event.pointerId); } catch (_) {}
-      }
-      hover.setAttribute("opacity", "0");
-    });
-    overlay.addEventListener("pointercancel", function () { hover.setAttribute("opacity", "0"); });
-    overlay.addEventListener("pointerleave", function () { hover.setAttribute("opacity", "0"); });
   }
 
   function closeDialog() {
     const dialog = $("chartDialog");
     if (dialog.open) dialog.close();
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
     updateScrollBtn();
     if (previousFocusElement && typeof previousFocusElement.focus === "function") {
       previousFocusElement.focus();
@@ -1237,7 +1241,7 @@ const DATA = (function () {
         trendColor,
         niceStep,
         axisLabel,
-        smoothLine,
+        withAlpha,
         won,
         mmdd
       };
@@ -1331,9 +1335,6 @@ const DATA = (function () {
   });
   $("chartDialog").addEventListener("click", function (event) {
     if (event.target === $("chartDialog")) closeDialog();
-  });
-  window.addEventListener("resize", function () {
-    if (currentItem && $("chartDialog").open) drawChart(currentItem);
   });
   window.addEventListener("popstate", function () {
     readUrlState();

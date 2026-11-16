@@ -1,8 +1,9 @@
 """history.csv로 시술별 가격 추이 페이지(index.html)를 만든다.
 
-페이지는 HTML 골격(index.html)과 정적 자산(assets/style.css, assets/app.js)으로
-나뉜다. 매일 바뀌는 것은 데이터가 들어간 HTML뿐이라 브라우저가 CSS·JS를
-재사용할 수 있고, 자산 주소에는 내용 해시를 붙여 바뀔 때만 새로 받게 한다.
+페이지는 HTML 골격(index.html)과 정적 자산(assets/style.css, assets/app.js,
+assets/vendor/chart.umd.min.js)으로 나뉜다. 매일 바뀌는 것은 데이터가 들어간
+HTML뿐이라 브라우저가 CSS·JS를 재사용할 수 있고, 자산 주소에는 내용 해시를
+붙여 바뀔 때만 새로 받게 한다.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ TEMPLATE_PATH = TEMPLATE_DIR / "index.html"
 PAYLOAD_PLACEHOLDER = "__PAYLOAD__"
 ASSET_VERSION_PLACEHOLDER = "__ASSET_VERSION__"
 DATA_VERSION_PLACEHOLDER = "__DATA_VERSION__"
-ASSET_NAMES = ("style.css", "app.js")
+ASSET_NAMES = ("style.css", "app.js", "vendor/chart.umd.min.js")
 ASSET_DIR_NAME = "assets"
 DATA_JS_NAME = "data.js"
 
