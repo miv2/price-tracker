@@ -272,9 +272,7 @@ const DATA = (function () {
 
   function renderRecent() {
     const sub = $("recentSub");
-    const countsBox = $("recentCounts");
     const list = $("recentList");
-    countsBox.textContent = "";
     list.textContent = "";
 
     if (RECENT.baseline) {
@@ -284,9 +282,8 @@ const DATA = (function () {
       return;
     }
 
-    sub.textContent = (RECENT.prev_date ? mmdd(RECENT.prev_date) : "직전") + " → " + mmdd(RECENT.date) + " 비교";
+    sub.textContent = (RECENT.prev_date ? mmdd(RECENT.prev_date) : "직전") + " → " + mmdd(RECENT.date) + " 비교 · " + fmt(RECENT.total) + "건";
 
-    renderChangeCounts(countsBox, RECENT.counts || {});
     renderChangeList(list, RECENT.items, "직전 수집 대비 변동이 없습니다.");
   }
 
