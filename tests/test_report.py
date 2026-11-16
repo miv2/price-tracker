@@ -59,6 +59,17 @@ def test_changes_only_listed_when_present():
     assert "### 종료" not in entry
 
 
+def test_returned_report_shows_previous_price_and_equal_price():
+    for price, expected in [(8_000, "종료 전 대비 -2,000원"), (10_000, "종료 전과 동일"), (12_000, "종료 전 대비 +2,000원")]:
+        changes = detect_changes([], [item("이벤트", "A", price)], {("이벤트", "A"): 10_000})
+        entry = build_entry(changes, "2026-11-16")
+        assert "재등장 1건" in entry
+        assert "### 재등장 (1건)" in entry
+        assert "마지막 확인가 10,000원 → " in entry
+        assert expected in entry
+        assert "### 신규" not in entry
+
+
 def test_escapes_markdown_specials_in_names():
     changes = make_changes(
         [],

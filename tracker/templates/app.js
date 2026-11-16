@@ -27,7 +27,7 @@ const DATA = (function () {
     baseline: true,
     date: DATA.last_date || null,
     prev_date: null,
-    counts: { decrease: 0, increase: 0, new: 0, removed: 0 },
+    counts: { decrease: 0, increase: 0, new: 0, returned: 0, removed: 0 },
     total: 0,
     items: []
   };
@@ -259,7 +259,7 @@ const DATA = (function () {
       const counts = RECENT.counts || {};
       $("statChanges").textContent = fmt(RECENT.total) + "건";
       $("statChanges").title = "인하 " + (counts.decrease || 0) + " · 인상 " + (counts.increase || 0) +
-        " · 신규 " + (counts.new || 0) + " · 종료 " + (counts.removed || 0);
+        " · 신규 " + (counts.new || 0) + " · 재등장 " + (counts.returned || 0) + " · 종료 " + (counts.removed || 0);
     }
     if (DATA.source_url) $("sourceLink").href = DATA.source_url;
     if (DATA.repo_url) {
@@ -286,30 +286,46 @@ const DATA = (function () {
 
     sub.textContent = (RECENT.prev_date ? mmdd(RECENT.prev_date) : "직전") + " → " + mmdd(RECENT.date) + " 비교";
 
+    renderChangeCounts(countsBox, RECENT.counts || {});
+    renderChangeList(list, RECENT.items, "직전 수집 대비 변동이 없습니다.");
+  }
+
+  function renderChangeCounts(countsBox, counts) {
+    countsBox.textContent = "";
     const kinds = [
       ["decrease", "인하", "good"],
       ["increase", "인상", "bad"],
       ["new", "신규", ""],
+      ["returned", "재등장", ""],
       ["removed", "종료", ""]
     ];
     for (const entry of kinds) {
-      const count = (RECENT.counts && RECENT.counts[entry[0]]) || 0;
+      const count = counts[entry[0]] || 0;
       const span = document.createElement("span");
       span.className = "count" + (count ? " " + entry[2] : " zero");
       span.textContent = entry[1] + " " + fmt(count);
       countsBox.appendChild(span);
     }
+  }
 
-    if (!RECENT.items.length) {
+  function returnedPriceText(change) {
+    const diff = change.delta === 0 ? "종료 전과 동일" : "종료 전 대비 " +
+      (change.delta > 0 ? "+" : "−") + won(Math.abs(change.delta));
+    return won(change.prev) + " → " + won(change.price) + " (" + diff + ")";
+  }
+
+  function renderChangeList(list, changes, emptyText, showDate) {
+    list.textContent = "";
+    if (!changes.length) {
       const empty = document.createElement("li");
       empty.className = "recent-empty";
-      empty.textContent = "직전 수집 대비 변동이 없습니다.";
+      empty.textContent = emptyText;
       list.appendChild(empty);
       return;
     }
 
-    const labels = { decrease: "인하", increase: "인상", new: "신규", removed: "종료" };
-    for (const change of RECENT.items) {
+    const labels = { decrease: "인하", increase: "인상", new: "신규", returned: "재등장", removed: "종료" };
+    for (const change of changes) {
       const li = document.createElement("li");
       const btn = document.createElement("button");
       btn.type = "button";
@@ -329,18 +345,22 @@ const DATA = (function () {
 
       const name = document.createElement("span");
       name.className = "rname";
-      name.textContent = change.name;
+      name.textContent = change.name + (showDate ? " · " + mmdd(change.date) : "");
       btn.appendChild(name);
 
       const value = document.createElement("span");
       value.className = "rval" + (change.kind === "decrease" ? " good" : change.kind === "increase" ? " bad" : "");
-      if (change.kind === "new") {
+      if (change.kind === "returned") {
+        value.textContent = returnedPriceText(change);
+      } else if (change.kind === "new") {
         value.textContent = won(change.price);
       } else if (change.kind === "removed") {
         value.textContent = won(change.prev);
       } else {
         const sign = change.delta > 0 ? "+" : "-";
-        value.textContent = sign + fmt(Math.abs(change.delta)) + "원";
+        value.textContent = showDate
+          ? won(change.prev) + " → " + won(change.price) + " (" + sign + won(Math.abs(change.delta)) + ")"
+          : sign + fmt(Math.abs(change.delta)) + "원";
       }
       btn.appendChild(value);
 
@@ -351,6 +371,33 @@ const DATA = (function () {
       li.appendChild(btn);
       list.appendChild(li);
     }
+  }
+
+  function renderMonthly(month) {
+    const summaries = DATA.monthly || [];
+    const summary = summaries.find(function (entry) { return entry.month === month; }) || summaries[0];
+    const select = $("monthFilter");
+    if (!select.options.length) {
+      summaries.forEach(function (entry) {
+        const option = document.createElement("option");
+        option.value = entry.month;
+        option.textContent = entry.month.replace("-", "년 ") + "월";
+        select.appendChild(option);
+      });
+    }
+    select.disabled = !summary;
+    if (!summary) {
+      $("monthlySub").textContent = "아직 수집 기록이 없습니다.";
+      renderChangeCounts($("monthlyCounts"), {});
+      renderChangeList($("monthlyList"), [], "기록이 쌓이면 인하 항목이 표시됩니다.");
+      return;
+    }
+    select.value = summary.month;
+    $("monthlySub").textContent = summary.first_date + " ~ " + summary.last_date + " · " +
+      summary.days + "일 수집 · 변동 " + fmt(summary.total) + "건. 수집일 간 변동 횟수 기준입니다." +
+      (summary.includes_baseline ? " 첫 수집일은 기준 데이터로 건수에서 제외합니다." : " 월 첫 수집은 직전 수집일과 비교합니다.");
+    renderChangeCounts($("monthlyCounts"), summary.counts);
+    renderChangeList($("monthlyList"), summary.top_decreases, "이달에 관측된 가격 인하가 없습니다.", true);
   }
 
   function renderStale() {
@@ -477,6 +524,13 @@ const DATA = (function () {
     name.className = "name-text";
     name.textContent = item.name;
     nameCell.appendChild(name);
+    if (item.active && item.returned) {
+      const badge = document.createElement("span");
+      badge.className = "badge returned";
+      badge.textContent = "재등장 · " + mmdd(item.returned.date);
+      badge.title = returnedPriceText(item.returned);
+      nameCell.appendChild(badge);
+    }
     if (!item.active) {
       const badge = document.createElement("span");
       badge.className = "badge";
@@ -624,6 +678,12 @@ const DATA = (function () {
         // 그룹 카드에서는 배너에 카테고리가 이미 있으므로 시술명을 제목 줄로 올린다.
         top.append(name, prices);
         line.appendChild(top);
+      }
+      if (item.active && item.returned) {
+        const returned = document.createElement("span");
+        returned.className = "event-extra returned";
+        returned.textContent = "재등장 · " + mmdd(item.returned.date) + " · " + returnedPriceText(item.returned);
+        line.appendChild(returned);
       }
       if (!item.active || isLow30(item)) {
         const extra = document.createElement("span");
@@ -791,6 +851,10 @@ const DATA = (function () {
       meta.appendChild(chip);
     }
     part("현재", won(last[1]));
+    if (item.returned) {
+      part("최근 재등장", item.returned.date);
+      part("재등장 가격 비교", returnedPriceText(item.returned));
+    }
     if (item.list_price !== undefined && item.list_price !== null) part("정가", won(item.list_price));
     const rate = item.discount_rate !== undefined ? item.discount_rate : discountRate(item);
     if (rate !== null && rate > 0) part("할인율", rate + "%", "good");
@@ -1243,6 +1307,7 @@ const DATA = (function () {
         axisLabel,
         withAlpha,
         won,
+        returnedPriceText,
         mmdd
       };
     }
@@ -1295,6 +1360,9 @@ const DATA = (function () {
     state.status = event.target.value;
     renderTable();
     syncUrl(true);
+  });
+  $("monthFilter").addEventListener("change", function (event) {
+    renderMonthly(event.target.value);
   });
   $("changedToggle").addEventListener("click", function () {
     state.changedOnly = !state.changedOnly;
@@ -1353,6 +1421,7 @@ const DATA = (function () {
   readUrlState();
   renderStats();
   renderRecent();
+  renderMonthly();
   renderStale();
   buildCategoryChips();
   applyStateToControls();

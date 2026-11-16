@@ -39,6 +39,12 @@ beforeEach(function () {
   app.changedIndexes.clear();
 });
 
+test("returnedPriceText() - 재등장 전후 가격과 동일·인하·인상을 표시한다", () => {
+  assert.equal(app.returnedPriceText({ prev: 10000, price: 10000, delta: 0 }), "10,000원 → 10,000원 (종료 전과 동일)");
+  assert.equal(app.returnedPriceText({ prev: 10000, price: 8000, delta: -2000 }), "10,000원 → 8,000원 (종료 전 대비 −2,000원)");
+  assert.equal(app.returnedPriceText({ prev: 10000, price: 12000, delta: 2000 }), "10,000원 → 12,000원 (종료 전 대비 +2,000원)");
+});
+
 test("discountRate() - 정가와 할인가 비율을 올바르게 계산한다", () => {
   const itemWithDiscount = {
     list_price: 100000,

@@ -47,6 +47,22 @@
     </details>
   </section>
 
+  <section class="recent monthly" aria-labelledby="monthlyTitle">
+    <div class="monthly-head">
+      <h2 id="monthlyTitle">월별 가격 요약</h2>
+      <select id="monthFilter" aria-label="요약할 월 선택"></select>
+    </div>
+    <div id="monthlyBody" aria-live="polite">
+      <p class="small" id="monthlySub"></p>
+      <div class="recent-counts" id="monthlyCounts"></div>
+      <details>
+        <summary class="monthly-ranking-title">인하 금액 TOP 5</summary>
+        <p class="small">시술별 가장 큰 1회 인하 기준 · 재등장 가격 차이는 제외</p>
+        <ul class="recent-list" id="monthlyList"></ul>
+      </details>
+    </div>
+  </section>
+
   <div class="section-heading">
     <div><h2 id="catalogTitle">이벤트 전체보기</h2><p>수원점 공개 할인가 기준 · VAT 별도</p></div>
     <span class="result-count" id="count" aria-live="polite"></span>

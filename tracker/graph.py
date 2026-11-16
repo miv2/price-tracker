@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from .compare import detect_changes
 from .history import group_by_item
 from .models import Item, PriceRow
 from .util import atomic_write_text
@@ -28,95 +30,105 @@ DATA_JS_NAME = "data.js"
 
 Payload = dict[str, Any]
 
-KIND_ORDER = {"decrease": 0, "increase": 1, "new": 2, "removed": 3}
+KIND_ORDER = {"decrease": 0, "increase": 1, "returned": 2, "new": 3, "removed": 4}
 
 
-def build_recent_changes(rows: list[PriceRow], items: list[Payload]) -> Payload:
-    """최근 두 수집일을 비교해 페이지 상단에 보여줄 변동 목록을 만든다.
-
-    ``items``는 정렬된 페이로드 항목 목록이며, 각 변동에는 그 목록에서의 위치를
-    ``index``로 담아 클릭 시 그래프를 바로 열 수 있게 한다. 기록이 하루뿐이면
-    ``baseline``이 참이고 변동 목록은 비운다.
-    """
-    dates = sorted({row["date"] for row in rows})
-    counts = {"decrease": 0, "increase": 0, "new": 0, "removed": 0}
-
-    if not dates:
-        return {
-            "baseline": True,
-            "date": None,
-            "prev_date": None,
-            "counts": counts,
-            "total": 0,
-            "items": [],
-        }
-
-    last_date = dates[-1]
-    if len(dates) < 2:
-        return {
-            "baseline": True,
-            "date": last_date,
-            "prev_date": None,
-            "counts": counts,
-            "total": 0,
-            "items": [],
-        }
-
-    prev_date = dates[-2]
-    prev_prices: dict[tuple[str, str], int] = {}
-    last_prices: dict[tuple[str, str], int] = {}
+def build_history_changes(rows: list[PriceRow], items: list[Payload]) -> list[Payload]:
+    """수집일 사이 변동을 계산한다. 수집하지 않은 날은 종료로 해석하지 않는다."""
+    snapshots: dict[str, dict[tuple[str, str], Item]] = defaultdict(dict)
     for row in rows:
-        key = (row["category"], row["name"])
-        if row["date"] == prev_date:
-            prev_prices[key] = row["sale_price"]
-        elif row["date"] == last_date:
-            last_prices[key] = row["sale_price"]
-
+        item = Item(row["category"], row["name"], None, row["sale_price"])
+        snapshots[row["date"]][item.key] = item
     index = {(entry["category"], entry["name"]): i for i, entry in enumerate(items)}
-    changes: list[Payload] = []
-    for key in set(prev_prices) | set(last_prices):
-        before = prev_prices.get(key)
-        after = last_prices.get(key)
-        if before == after:
-            continue
-        if before is None:
-            kind = "new"
-        elif after is None:
-            kind = "removed"
-        elif after < before:
-            kind = "decrease"
-        else:
-            kind = "increase"
-        counts[kind] += 1
-        changes.append(
-            {
-                "index": index.get(key, -1),
-                "category": key[0],
-                "name": key[1],
-                "kind": kind,
-                "prev": before,
-                "price": after,
-                "delta": (after - before) if before is not None and after is not None else None,
-            }
-        )
+    previous: dict[tuple[str, str], Item] | None = None
+    last_known: dict[tuple[str, str], int] = {}
+    prev_date: str | None = None
+    events: list[Payload] = []
+    for date, snapshot in sorted(snapshots.items()):
+        changes = detect_changes(previous.values() if previous is not None else None, snapshot.values(), last_known)
+        for change in changes.decreases + changes.increases + changes.returned + changes.new + changes.removed:
+            events.append({
+                "index": index.get(change.key, -1),
+                "date": date,
+                "prev_date": prev_date,
+                "category": change.category,
+                "name": change.name,
+                "kind": change.kind,
+                "prev": change.old_price,
+                "price": change.new_price,
+                "delta": change.delta,
+            })
+        last_known.update({key: item.sale_price for key, item in snapshot.items()})
+        previous = snapshot
+        prev_date = date
+    return events
 
+
+def change_counts(events: list[Payload]) -> dict[str, int]:
+    counts = dict.fromkeys(KIND_ORDER, 0)
+    for event in events:
+        counts[event["kind"]] += 1
+    return counts
+
+
+def build_recent_changes(
+    rows: list[PriceRow], items: list[Payload], events: list[Payload] | None = None,
+) -> Payload:
+    """최근 두 수집일의 변동. 재등장은 종료 전 마지막 가격과 비교한다."""
+    dates = sorted({row["date"] for row in rows})
+    if events is None:
+        events = build_history_changes(rows, items)
+    changes = [event for event in events if dates and event["date"] == dates[-1]]
     changes.sort(
         key=lambda change: (
             KIND_ORDER[change["kind"]],
             -(abs(change["delta"]) if change["delta"] is not None else 0),
-            change["category"],
-            change["name"],
+            change["category"], change["name"],
         )
     )
-
     return {
-        "baseline": False,
-        "date": last_date,
-        "prev_date": prev_date,
-        "counts": counts,
+        "baseline": len(dates) < 2,
+        "date": dates[-1] if dates else None,
+        "prev_date": dates[-2] if len(dates) > 1 else None,
+        "counts": change_counts(changes),
         "total": len(changes),
         "items": changes,
     }
+
+
+def build_monthly_summary(rows: list[PriceRow], events: list[Payload]) -> list[Payload]:
+    """월별 변동 횟수와 시술별 가장 큰 단일 인하 상위 5개를 만든다."""
+    dates = sorted({row["date"] for row in rows})
+    months: dict[str, list[str]] = defaultdict(list)
+    monthly_events: dict[str, list[Payload]] = defaultdict(list)
+    for date in dates:
+        months[date[:7]].append(date)
+    for event in events:
+        monthly_events[event["date"][:7]].append(event)
+    summaries: list[Payload] = []
+    for month, month_dates in sorted(months.items(), reverse=True):
+        changes = monthly_events[month]
+        biggest: dict[int, Payload] = {}
+        for event in changes:
+            if event["kind"] != "decrease":
+                continue
+            old = biggest.get(event["index"])
+            if old is None or event["delta"] < old["delta"] or (
+                event["delta"] == old["delta"] and event["date"] > old["date"]
+            ):
+                biggest[event["index"]] = event
+        top = sorted(biggest.values(), key=lambda event: (event["delta"], event["category"], event["name"]))[:5]
+        summaries.append({
+            "month": month,
+            "first_date": month_dates[0],
+            "last_date": month_dates[-1],
+            "days": len(month_dates),
+            "includes_baseline": month_dates[0] == dates[0],
+            "counts": change_counts(changes),
+            "total": len(changes),
+            "top_decreases": top,
+        })
+    return summaries
 
 
 def build_payload(
@@ -161,6 +173,10 @@ def build_payload(
 
     items.sort(key=lambda entry: (entry["category"], entry["name"]))
     dates = sorted({row["date"] for row in rows})
+    events = build_history_changes(rows, items)
+    for event in events:
+        if event["kind"] == "returned":
+            items[event["index"]]["returned"] = event
 
     return {
         "source_url": source_url,
@@ -169,7 +185,8 @@ def build_payload(
         "first_date": dates[0] if dates else None,
         "last_date": dates[-1] if dates else None,
         "active_count": sum(1 for entry in items if entry["active"]),
-        "recent": build_recent_changes(rows, items),
+        "recent": build_recent_changes(rows, items, events),
+        "monthly": build_monthly_summary(rows, events),
         "items": items,
     }
 

@@ -51,7 +51,7 @@ def _summary_line(changes: ChangeSet) -> str:
     counts = changes.summary_counts()
     return (
         f"요약: 가격 인하 {counts['decrease']}건 · 가격 인상 {counts['increase']}건 · "
-        f"신규 {counts['new']}건 · 종료 {counts['removed']}건"
+        f"신규 {counts['new']}건 · 재등장 {counts['returned']}건 · 종료 {counts['removed']}건"
     )
 
 
@@ -73,6 +73,16 @@ def build_entry(changes: ChangeSet, date: str, bulk_threshold: int = 10) -> str:
         lines.append(f"### 가격 인상 ({len(changes.increases)}건)")
         lines.append("")
         lines.extend(_price_change_line(change) for change in changes.increases)
+        lines.append("")
+
+    if changes.returned:
+        lines.extend([f"### 재등장 ({len(changes.returned)}건)", ""])
+        for change in changes.returned:
+            comparison = "종료 전과 동일" if change.delta == 0 else f"종료 전 대비 {change.delta:+,}원"
+            lines.append(
+                f"- 재등장: {_label(change)} — 마지막 확인가 {format_won(change.old_price)} → "
+                f"{format_won(change.new_price)} ({comparison})"
+            )
         lines.append("")
 
     bulk = (len(changes.new) + len(changes.removed)) >= bulk_threshold

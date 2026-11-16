@@ -67,6 +67,26 @@ SECOND: list[Entry] = [
 ]
 
 
+def test_returned_report_and_monthly_survive_same_day_reruns(tmp_path: Path):
+    project = setup_project(tmp_path)
+    page = tmp_path / "page.html"
+    for date, entries in [("2026-10-30", FIRST), ("2026-10-31", SECOND), ("2026-11-01", FIRST)]:
+        page.write_text(make_page(entries), encoding="utf-8")
+        assert run(project, page, date) == 0
+    assert run(project, page, "2026-11-01") == 0
+    changes = (project / "CHANGES.md").read_text(encoding="utf-8")
+    assert changes.count("### 재등장 (1건)") == 1
+    assert "종료 전과 동일" in changes
+    data_js = (project / "assets/data.js").read_text(encoding="utf-8")
+    payload = json.loads(data_js.removeprefix("window.__PRICE_DATA__=").removesuffix(";"))
+    assert payload["recent"]["counts"]["returned"] == 1
+    assert payload["monthly"][0]["counts"]["returned"] == 1
+    # 같은 날짜를 교체해 재등장이 사라지면 요약에서도 제거된다.
+    page.write_text(make_page(SECOND), encoding="utf-8")
+    assert run(project, page, "2026-11-01") == 0
+    assert "### 재등장" not in (project / "CHANGES.md").read_text(encoding="utf-8")
+
+
 def test_full_flow_baseline_then_changes(tmp_path: Path):
     project = setup_project(tmp_path)
     page1 = tmp_path / "day1.html"

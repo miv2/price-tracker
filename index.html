@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#ffffff">
 <link rel="icon" href="data:,">
 <title>피부과 가격 추적기 · 유앤아이의원 수원점</title>
-<link rel="stylesheet" href="assets/style.css?v=3fd6f63846">
+<link rel="stylesheet" href="assets/style.css?v=b1225ac325">
 </head>
 <body>
 <div class="site-strip">YOU<span>&amp;</span>I <strong>SUWON</strong> · EVENT PRICE TRACKER</div>
@@ -45,6 +45,22 @@
       </summary>
       <ul class="recent-list" id="recentList"></ul>
     </details>
+  </section>
+
+  <section class="recent monthly" aria-labelledby="monthlyTitle">
+    <div class="monthly-head">
+      <h2 id="monthlyTitle">월별 가격 요약</h2>
+      <select id="monthFilter" aria-label="요약할 월 선택"></select>
+    </div>
+    <div id="monthlyBody" aria-live="polite">
+      <p class="small" id="monthlySub"></p>
+      <div class="recent-counts" id="monthlyCounts"></div>
+      <details>
+        <summary class="monthly-ranking-title">인하 금액 TOP 5</summary>
+        <p class="small">시술별 가장 큰 1회 인하 기준 · 재등장 가격 차이는 제외</p>
+        <ul class="recent-list" id="monthlyList"></ul>
+      </details>
+    </div>
   </section>
 
   <div class="section-heading">
@@ -142,8 +158,8 @@
   </div>
 </dialog>
 
-<script src="assets/vendor/chart.umd.min.js?v=3fd6f63846"></script>
-<script src="assets/data.js?v=07dbe133ff"></script>
-<script src="assets/app.js?v=3fd6f63846"></script>
+<script src="assets/vendor/chart.umd.min.js?v=b1225ac325"></script>
+<script src="assets/data.js?v=9091cbc127"></script>
+<script src="assets/app.js?v=b1225ac325"></script>
 </body>
 </html>

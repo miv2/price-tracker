@@ -156,7 +156,7 @@ def _changes_line(changes: ChangeSet) -> str:
     counts = changes.summary_counts()
     return (
         f"가격 인하 {counts['decrease']}건 · 가격 인상 {counts['increase']}건 · "
-        f"신규 {counts['new']}건 · 종료 {counts['removed']}건"
+        f"신규 {counts['new']}건 · 재등장 {counts['returned']}건 · 종료 {counts['removed']}건"
     )
 
 
@@ -260,8 +260,12 @@ def run(args: argparse.Namespace) -> int:
 
     history_rows = load_history(paths.history)
     same_day = any(row["date"] == date for row in history_rows)
+    last_known = {
+        (row["category"], row["name"]): row["sale_price"]
+        for row in history_rows if row["date"] < date
+    }
 
-    changes = detect_changes(list(previous.values()) if previous else None, items)
+    changes = detect_changes(list(previous.values()) if previous else None, items, last_known)
     if same_day:
         prior_dates = [row["date"] for row in history_rows if row["date"] < date]
         if prior_dates:
@@ -270,7 +274,7 @@ def run(args: argparse.Namespace) -> int:
                 Item(row["category"], row["name"], None, row["sale_price"])
                 for row in history_rows if row["date"] == prior_date
             ]
-            changes = detect_changes(prior_items, items)
+            changes = detect_changes(prior_items, items, last_known)
         else:
             changes = ChangeSet()
     if config.exclude_keywords:

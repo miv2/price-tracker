@@ -7,7 +7,7 @@ from typing import Iterable, Literal
 
 from .models import Item
 
-ChangeKind = Literal["decrease", "increase", "new", "removed"]
+ChangeKind = Literal["decrease", "increase", "new", "removed", "returned"]
 
 
 @dataclass(frozen=True)
@@ -35,10 +35,11 @@ class ChangeSet:
     increases: list[Change] = field(default_factory=list)
     new: list[Change] = field(default_factory=list)
     removed: list[Change] = field(default_factory=list)
+    returned: list[Change] = field(default_factory=list)
 
     @property
     def total(self) -> int:
-        return len(self.decreases) + len(self.increases) + len(self.new) + len(self.removed)
+        return len(self.decreases) + len(self.increases) + len(self.new) + len(self.removed) + len(self.returned)
 
     @property
     def is_empty(self) -> bool:
@@ -50,6 +51,7 @@ class ChangeSet:
             "increase": len(self.increases),
             "new": len(self.new),
             "removed": len(self.removed),
+            "returned": len(self.returned),
         }
 
 
@@ -57,10 +59,15 @@ def _sort_key(change: Change) -> tuple[str, str]:
     return (change.category, change.name)
 
 
-def detect_changes(previous: Iterable[Item] | None, current: Iterable[Item]) -> ChangeSet:
-    """할인가 비교로 인하·인상·신규·종료를 판정한다.
+def detect_changes(
+    previous: Iterable[Item] | None,
+    current: Iterable[Item],
+    last_known: dict[tuple[str, str], int] | None = None,
+) -> ChangeSet:
+    """할인가 비교로 인하·인상·신규·재등장·종료를 판정한다.
 
     previous가 None이면 첫 실행이므로 비교하지 않고 빈 ChangeSet을 돌려준다.
+    last_known은 현재 수집일 이전의 마지막 확인가이며, 직전에 없던 항목의 재등장을 구분한다.
     """
     if previous is None:
         return ChangeSet()
@@ -72,12 +79,14 @@ def detect_changes(previous: Iterable[Item] | None, current: Iterable[Item]) -> 
     for key, item in after.items():
         old = before.get(key)
         if old is None:
-            changes.new.append(
+            known_price = (last_known or {}).get(key)
+            target = changes.returned if known_price is not None else changes.new
+            target.append(
                 Change(
-                    kind="new",
+                    kind="returned" if known_price is not None else "new",
                     category=item.category,
                     name=item.name,
-                    old_price=None,
+                    old_price=known_price,
                     new_price=item.sale_price,
                 )
             )
@@ -118,4 +127,5 @@ def detect_changes(previous: Iterable[Item] | None, current: Iterable[Item]) -> 
     changes.increases.sort(key=_sort_key)
     changes.new.sort(key=_sort_key)
     changes.removed.sort(key=_sort_key)
+    changes.returned.sort(key=_sort_key)
     return changes

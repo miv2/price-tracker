@@ -16,6 +16,22 @@ def test_first_run_has_no_changes():
     assert changes.total == 0
 
 
+def test_returned_is_separate_from_new_and_uses_last_known_price():
+    changes = detect_changes(
+        [item("이벤트", "유지", 10_000)],
+        [item("이벤트", "유지", 10_000), item("이벤트", "A", 8_000), item("다른 카테고리", "A", 8_000)],
+        {("이벤트", "A"): 12_000},
+    )
+    assert [c.name for c in changes.returned] == ["A"]
+    assert changes.returned[0].old_price == 12_000
+    assert changes.returned[0].delta == -4_000
+    assert changes.new[0].category == "다른 카테고리"
+    assert changes.decreases == []  # 재등장 가격 차이를 인하로 중복 집계하지 않는다.
+    assert changes.total == 2
+    assert changes.summary_counts()["returned"] == 1
+    assert not changes.is_empty
+
+
 def test_detects_all_four_change_types():
     previous = [
         item("첫방문 이벤트", "피코토닝", 29_000),
