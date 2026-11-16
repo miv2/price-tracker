@@ -588,9 +588,6 @@ const DATA = (function () {
       line.setAttribute("aria-label", item.name + " 가격 추이 보기");
       const top = document.createElement("span");
       top.className = "event-line-top";
-      const categoryLabel = document.createElement("span");
-      categoryLabel.className = "event-category";
-      categoryLabel.textContent = item.category || "이벤트";
       const prices = document.createElement("span");
       prices.className = "event-prices";
       const listPrice = document.createElement("span");
@@ -600,7 +597,6 @@ const DATA = (function () {
       salePrice.className = "event-sale-price";
       salePrice.textContent = won(currentPrice(item));
       prices.append(listPrice, salePrice);
-      top.append(categoryLabel, prices);
       const name = document.createElement("span");
       name.className = "event-name";
       const nameText = document.createElement("span");
@@ -611,7 +607,17 @@ const DATA = (function () {
       openHint.setAttribute("aria-hidden", "true");
       openHint.textContent = "↗";
       name.append(nameText, openHint);
-      line.append(top, name);
+      if (compact) {
+        const categoryLabel = document.createElement("span");
+        categoryLabel.className = "event-category";
+        categoryLabel.textContent = item.category || "이벤트";
+        top.append(categoryLabel, prices);
+        line.append(top, name);
+      } else {
+        // 그룹 카드에서는 배너에 카테고리가 이미 있으므로 시술명을 제목 줄로 올린다.
+        top.append(name, prices);
+        line.appendChild(top);
+      }
       if (!item.active || isLow30(item)) {
         const extra = document.createElement("span");
         extra.className = "event-extra";
@@ -827,6 +833,7 @@ const DATA = (function () {
 
     previousFocusElement = document.activeElement;
     if (!dialog.open) dialog.showModal();
+    updateScrollBtn();
     const closeBtn = $("chartClose");
     if (closeBtn) closeBtn.focus();
     drawChart(item);
@@ -1185,6 +1192,7 @@ const DATA = (function () {
   function closeDialog() {
     const dialog = $("chartDialog");
     if (dialog.open) dialog.close();
+    updateScrollBtn();
     if (previousFocusElement && typeof previousFocusElement.focus === "function") {
       previousFocusElement.focus();
       previousFocusElement = null;
@@ -1243,12 +1251,22 @@ const DATA = (function () {
   });
 
   const scrollBtn = $("scrollTopBtn");
+  let lastScrollY = window.scrollY;
+  let scrollFrame = 0;
+
+  // 아래로 읽는 중이거나 상세 창이 열려 있을 때는 시술명·가격을 가리지 않도록 숨긴다.
+  function updateScrollBtn() {
+    scrollFrame = 0;
+    const y = window.scrollY;
+    const goingDown = y > lastScrollY + 2;
+    if (Math.abs(y - lastScrollY) > 2) lastScrollY = y;
+    const dialogOpen = $("chartDialog").open;
+    const show = y > 350 && !dialogOpen && !goingDown;
+    scrollBtn.style.display = show ? "flex" : "none";
+  }
+
   window.addEventListener("scroll", function () {
-    if (window.scrollY > 350) {
-      scrollBtn.style.display = "flex";
-    } else {
-      scrollBtn.style.display = "none";
-    }
+    if (!scrollFrame) scrollFrame = window.requestAnimationFrame(updateScrollBtn);
   }, { passive: true });
 
   scrollBtn.addEventListener("click", function () {
