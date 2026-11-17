@@ -7,7 +7,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#ffffff">
-<link rel="icon" href="data:,">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="application-name" content="가격 추적">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
 <title>유앤아이의원 가격 추적</title>
 <link rel="stylesheet" href="assets/style.css?v=__ASSET_VERSION__">
 </head>
@@ -127,7 +131,7 @@
   <div class="wrap">
     <p>데이터: <a id="sourceLink" href="https://www.swuni114.co.kr/" target="_blank" rel="noopener">유앤아이의원 수원점 이벤트 페이지</a> · 가격은 할인가 기준이며 VAT 별도입니다.</p>
     <p>변동 내역: <a id="changesLink" href="CHANGES.md">CHANGES.md</a> · 원본 데이터: <a id="historyLink" href="history.csv">history.csv</a>, <a id="pricesLink" href="prices.json">prices.json</a></p>
-    <p>GitHub Actions가 하루 1회 자동으로 갱신합니다.</p>
+    <p>GitHub Actions가 하루 1회 자동으로 갱신합니다. <button type="button" class="link-btn install-btn" id="installBtn" hidden>앱으로 설치</button></p>
   </div>
 </footer>
 

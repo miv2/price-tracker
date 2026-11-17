@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="가격 추적">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4739c"/>
+      <stop offset="1" stop-color="#c9306a"/>
+    </linearGradient>
+    <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cb3f70" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#cb3f70" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect x="112" y="112" width="288" height="288" rx="68" fill="#ffffff"/>
+  <path d="M156 214 L214 262 L266 232 L318 304 L356 282 L356 352 L156 352 Z" fill="url(#area)"/>
+  <path d="M156 214 L214 262 L266 232 L318 304 L356 282" fill="none" stroke="#cb3f70" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="156" cy="214" r="11" fill="#cb3f70" opacity=".45"/>
+  <circle cx="214" cy="262" r="11" fill="#cb3f70" opacity=".45"/>
+  <circle cx="266" cy="232" r="11" fill="#cb3f70" opacity=".45"/>
+  <circle cx="318" cy="304" r="11" fill="#cb3f70" opacity=".45"/>
+  <circle cx="356" cy="282" r="14" fill="#cb3f70"/>
+</svg>

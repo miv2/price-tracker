@@ -24,9 +24,19 @@ TEMPLATE_PATH = TEMPLATE_DIR / "index.html"
 PAYLOAD_PLACEHOLDER = "__PAYLOAD__"
 ASSET_VERSION_PLACEHOLDER = "__ASSET_VERSION__"
 DATA_VERSION_PLACEHOLDER = "__DATA_VERSION__"
+SW_CACHE_PLACEHOLDER = "__CACHE_VERSION__"
+SW_PRECACHE_PLACEHOLDER = "__PRECACHE__"
 ASSET_NAMES = ("style.css", "app.js", "vendor/chart.umd.min.js")
 ASSET_DIR_NAME = "assets"
 DATA_JS_NAME = "data.js"
+SW_NAME = "sw.js"
+PWA_STATIC_FILES = (
+    "manifest.webmanifest",
+    "icons/icon-192.png",
+    "icons/icon-512.png",
+    "icons/icon-maskable-512.png",
+    "icons/apple-touch-icon.png",
+)
 
 Payload = dict[str, Any]
 
@@ -219,6 +229,36 @@ def write_assets(target_dir: Path, assets: dict[str, str]) -> None:
         atomic_write_text(target, text)
 
 
+def render_service_worker(
+    template_dir: Path = TEMPLATE_DIR,
+    version: str = "",
+    data_version: str = "",
+) -> str:
+    """오프라인 캐시용 서비스 워커(sw.js)를 만든다.
+
+    캐시 이름에는 자산·데이터 해시를 넣어, 내용이 바뀌면 예전 캐시를 버리고
+    새 파일을 미리 받는다. 첫 설치에서도 오프라인으로 열 수 있도록 페이지와
+    화면에 필요한 자산을 모두 미리 받아 둔다.
+    """
+    template = (template_dir / SW_NAME).read_text(encoding="utf-8")
+    if not version:
+        version = asset_version(load_assets(template_dir))
+    precache = [
+        "./",
+        "./index.html",
+        f"./assets/style.css?v={version}",
+        f"./assets/app.js?v={version}",
+        f"./assets/vendor/chart.umd.min.js?v={version}",
+        f"./assets/data.js?v={data_version or '0'}",
+        *[f"./{name}" for name in PWA_STATIC_FILES],
+    ]
+    cache_version = hashlib.sha256(f"{version}|{data_version}".encode("utf-8")).hexdigest()[:10]
+    return (
+        template.replace(SW_CACHE_PLACEHOLDER, cache_version)
+        .replace(SW_PRECACHE_PLACEHOLDER, json.dumps(precache, ensure_ascii=False))
+    )
+
+
 def serialize_payload(payload: Payload) -> str:
     """페이로드를 JSON 문자열로 직렬화한다."""
     payload_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
@@ -278,5 +318,10 @@ def write_graph(
         atomic_write_text(data_target, data_js)
 
     # 3. 경량 HTML 스켈레톤 생성
-    html = render_html(payload, template_path, asset_version(assets), data_version)
+    version = asset_version(assets)
+    html = render_html(payload, template_path, version, data_version)
     atomic_write_text(path, html)
+
+    # 4. 오프라인 열람용 서비스 워커 생성
+    sw = render_service_worker(template_path.parent, version, data_version)
+    atomic_write_text(path.parent / SW_NAME, sw)

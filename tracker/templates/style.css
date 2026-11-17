@@ -397,6 +397,20 @@ svg.spark { display: block; width: 104px; height: 28px; }
 }
 footer { color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); padding: 24px 0 44px; background: var(--panel); }
 footer p { margin: 4px 0; }
+.install-btn {
+  margin: 0 0 0 4px;
+  padding: 4px 11px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  vertical-align: 1px;
+  touch-action: manipulation;
+}
+.install-btn:hover { background: var(--accent-soft); }
+.install-btn[hidden] { display: none; }
 .sheet-handle { display: none; }
 dialog {
   width: min(980px, calc(100vw - 28px));

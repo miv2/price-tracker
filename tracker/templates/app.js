@@ -1625,6 +1625,55 @@ const DATA = (function () {
     $("q").focus();
   });
 
+  let installPromptEvent = null;
+
+  // 홈 화면 추가(PWA)를 위해 서비스 워커를 등록한다. https 또는 localhost에서만 동작한다.
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js", { scope: "./" }).catch(function () {
+        // 구형 사파리·사생활 보호 모드처럼 등록이 막힌 환경에서도 페이지는 그대로 쓴다.
+      });
+    });
+  }
+
+  function setupInstallButton() {
+    const button = $("installBtn");
+    if (!button) return;
+    window.addEventListener("beforeinstallprompt", function (event) {
+      event.preventDefault();
+      installPromptEvent = event;
+      button.hidden = false;
+    });
+    button.addEventListener("click", function () {
+      if (!installPromptEvent) return;
+      const prompt = installPromptEvent;
+      installPromptEvent = null;
+      button.hidden = true;
+      prompt.prompt();
+    });
+    window.addEventListener("appinstalled", function () {
+      installPromptEvent = null;
+      button.hidden = true;
+      toast("홈 화면에 추가했습니다.");
+    });
+  }
+
+  function setupConnectionNotice() {
+    window.addEventListener("offline", function () {
+      toast("오프라인 · 저장된 가격을 보여줍니다.");
+    });
+    window.addEventListener("online", function () {
+      toast("다시 연결되었습니다.");
+    });
+  }
+
+  registerServiceWorker();
+  setupInstallButton();
+  setupConnectionNotice();
+  // 오프라인 상태로 새로 열었을 때는 offline 이벤트가 발생하지 않으므로 직접 알린다.
+  if (navigator.onLine === false) toast("오프라인 · 저장된 가격을 보여줍니다.");
+
   readUrlState();
   renderStats();
   renderRecent();

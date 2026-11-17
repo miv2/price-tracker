@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from tracker.graph import (
@@ -9,10 +10,13 @@ from tracker.graph import (
     build_payload,
     load_assets,
     render_html,
+    render_service_worker,
     write_assets,
     write_graph,
 )
 from tracker.models import Item, PriceRow
+
+ROOT = Path(__file__).resolve().parents[1]
 
 ROWS = [
     {"date": "2026-11-13", "category": "첫방문 이벤트", "name": "피코토닝 1회", "sale_price": 29_000},
@@ -255,6 +259,10 @@ def test_write_graph_creates_file(tmp_path: Path):
     assert "빼빼로데이" in data_js
     assert '"recent"' in data_js
     assert "window.__PRICE_DATA__=" in data_js
+    # 홈 화면 추가(PWA)에 필요한 메타데이터와 설치 버튼.
+    assert '<link rel="manifest" href="manifest.webmanifest">' in html
+    assert 'href="icons/apple-touch-icon.png"' in html
+    assert 'id="installBtn"' in html
 
 
 def test_write_graph_splits_static_assets(tmp_path: Path):
@@ -283,6 +291,61 @@ def test_write_graph_splits_static_assets(tmp_path: Path):
     assert 'src="assets/data.js?v=' in html
     # 데이터가 app.js보다 먼저 실행되어야 window.__PRICE_DATA__가 준비된다.
     assert html.index("assets/data.js") < html.index("assets/app.js")
+
+
+def test_render_service_worker_fills_placeholders():
+    sw = render_service_worker()
+    # 남은 자리표시자가 있으면 브라우저가 캐시 이름·미리 받을 목록을 해석하지 못한다.
+    assert "__CACHE_VERSION__" not in sw
+    assert "__PRECACHE__" not in sw
+    assert 'const CACHE = "price-tracker-' in sw
+    assert "self.addEventListener(\"fetch\"" in sw
+    for url in (
+        "./index.html",
+        "./manifest.webmanifest",
+        "./assets/style.css?v=",
+        "./assets/app.js?v=",
+        "./assets/vendor/chart.umd.min.js?v=",
+        "./assets/data.js?v=",
+        "./icons/icon-192.png",
+        "./icons/icon-maskable-512.png",
+        "./icons/apple-touch-icon.png",
+    ):
+        assert url in sw
+
+
+def test_render_service_worker_version_follows_content():
+    first = render_service_worker(version="aaaa", data_version="1111")
+    same = render_service_worker(version="aaaa", data_version="1111")
+    changed = render_service_worker(version="aaaa", data_version="2222")
+    assert first == same
+    assert first != changed
+    assert '"./assets/data.js?v=1111"' in first
+
+
+def test_write_graph_writes_service_worker(tmp_path: Path):
+    path = tmp_path / "index.html"
+    write_graph(path, ROWS, [active_item()], "https://example.com/")
+
+    sw = (tmp_path / "sw.js").read_text(encoding="utf-8")
+    assert "__CACHE_VERSION__" not in sw
+    assert "price-tracker-" in sw
+
+
+def test_pwa_manifest_and_icons_exist():
+    manifest = json.loads((ROOT / "manifest.webmanifest").read_text(encoding="utf-8"))
+    assert manifest["start_url"] == "./"
+    assert manifest["scope"] == "./"
+    assert manifest["display"] == "standalone"
+    assert manifest["lang"] == "ko"
+
+    entries = {(icon["sizes"], icon["purpose"]) for icon in manifest["icons"]}
+    assert ("192x192", "any") in entries
+    assert ("512x512", "any") in entries
+    assert ("512x512", "maskable") in entries
+    for icon in manifest["icons"]:
+        assert (ROOT / icon["src"]).is_file(), icon["src"]
+    assert (ROOT / "icons" / "apple-touch-icon.png").is_file()
 
 
 def test_asset_version_tracks_content():
