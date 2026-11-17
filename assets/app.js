@@ -33,8 +33,13 @@ const DATA = (function () {
   };
   const changedIndexes = new Set((RECENT.items || []).map(function (change) { return change.index; }));
   const PAGE_SIZE = 40;
-  const state = { q: "", category: "", status: "active", changedOnly: false, sort: "category", view: "cards", pageSize: PAGE_SIZE };
+  const FAVORITES_KEY = "priceTracker.favorites.v1";
+  const CHOSUNG = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+  const state = { q: "", category: "", status: "active", changedOnly: false, favoritesOnly: false, sort: "category", view: "cards", pageSize: PAGE_SIZE };
   let displayLimit = PAGE_SIZE;
+  let openItemKey = "";
+  let chartHistoryPushed = false;
+  const favorites = loadFavorites(storageOrNull());
   const expandedCategories = new Set();
   let currentFilteredList = [];
   let currentPageItems = [];
@@ -45,12 +50,83 @@ const DATA = (function () {
 
   const SORT_VALUES = ["category", "recent", "discount-desc", "price-desc", "price-asc", "name"];
 
+  function itemKey(item) {
+    return (item.category || "") + "||" + item.name;
+  }
+
+  function findItemByKey(key) {
+    if (!key) return null;
+    for (const item of items) {
+      if (itemKey(item) === key) return item;
+    }
+    return null;
+  }
+
+  function readItemKey(search) {
+    return new URLSearchParams(search || "").get("item") || "";
+  }
+
+  function storageOrNull() {
+    if (typeof window === "undefined") return null;
+    try {
+      return window.localStorage;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function loadFavorites(storage) {
+    if (!storage || typeof storage.getItem !== "function") return new Set();
+    try {
+      const raw = storage.getItem(FAVORITES_KEY);
+      if (!raw) return new Set();
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return new Set();
+      return new Set(parsed.filter(function (value) { return typeof value === "string"; }));
+    } catch (error) {
+      return new Set();
+    }
+  }
+
+  function saveFavorites(storage, set) {
+    if (!storage || typeof storage.setItem !== "function") return;
+    try {
+      storage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(set)));
+    } catch (error) {
+      // 저장 공간이 없거나 프라이빗 모드면 이번 방문 동안만 유지한다.
+    }
+  }
+
+  // 한글을 초성으로 바꿔 "ㅍㅋㅌㄴ" 같은 초성 검색을 가능하게 한다.
+  function toChosung(text) {
+    let out = "";
+    for (const char of String(text).toLowerCase()) {
+      const code = char.charCodeAt(0);
+      if (code >= 0xac00 && code <= 0xd7a3) {
+        out += CHOSUNG.charAt(Math.floor((code - 0xac00) / 588));
+      } else if (char !== " ") {
+        out += char;
+      }
+    }
+    return out;
+  }
+
+  function matchesQuery(item, query) {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    if (item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q)) return true;
+    const chosungQuery = toChosung(q);
+    if (!chosungQuery) return false;
+    return toChosung(item.name).includes(chosungQuery) || toChosung(item.category).includes(chosungQuery);
+  }
+
   function parseUrlState(search) {
     const next = {
       q: "",
       category: "",
       status: "active",
       changedOnly: false,
+      favoritesOnly: false,
       sort: "category",
       view: "cards",
       pageSize: PAGE_SIZE
@@ -63,6 +139,7 @@ const DATA = (function () {
     const status = params.get("status");
     if (status === "active" || status === "ended" || status === "all") next.status = status;
     if (params.get("changed") === "1") next.changedOnly = true;
+    if (params.get("fav") === "1") next.favoritesOnly = true;
     const sort = params.get("sort");
     if (SORT_VALUES.indexOf(sort) !== -1) next.sort = sort;
     if (params.get("view") === "table") next.view = "table";
@@ -77,20 +154,23 @@ const DATA = (function () {
     Object.assign(state, parseUrlState(window.location.search));
   }
 
-  function buildQuery(current) {
+  function buildQuery(current, itemKeyValue) {
     const params = new URLSearchParams();
     if (current.q) params.set("q", current.q);
     if (current.category) params.set("category", current.category);
     if (current.status !== "active") params.set("status", current.status);
     if (current.changedOnly) params.set("changed", "1");
+    if (current.favoritesOnly) params.set("fav", "1");
     if (current.sort !== "category") params.set("sort", current.sort);
     if (current.view !== "cards") params.set("view", "table");
     if (current.pageSize !== PAGE_SIZE) params.set("limit", current.pageSize === Infinity ? "all" : String(current.pageSize));
+    if (itemKeyValue) params.set("item", itemKeyValue);
     return params.toString();
   }
 
-  function syncUrl(push) {
-    const query = buildQuery(state);
+  function syncUrl(push, itemKeyValue) {
+    const key = itemKeyValue === undefined ? openItemKey : itemKeyValue;
+    const query = buildQuery(state, key);
     const url = window.location.pathname + (query ? "?" + query : "") + window.location.hash;
     if (push) window.history.pushState(null, "", url);
     else window.history.replaceState(null, "", url);
@@ -111,6 +191,7 @@ const DATA = (function () {
     $("changedToggle").setAttribute("aria-pressed", String(state.changedOnly));
     $("viewToggle").textContent = state.view === "cards" ? "표로 보기" : "카드로 보기";
     $("viewToggle").setAttribute("aria-pressed", String(state.view === "table"));
+    updateFavoritesUi();
   }
 
   function overallDelta(item) {
@@ -451,11 +532,9 @@ const DATA = (function () {
     if (state.status === "active" && !item.active) return false;
     if (state.status === "ended" && item.active) return false;
     if (state.changedOnly && !changedIndexes.has(item.idx)) return false;
+    if (state.favoritesOnly && !favorites.has(itemKey(item))) return false;
     if (state.category && item.category !== state.category) return false;
-    if (state.q) {
-      const q = state.q.toLowerCase();
-      if (!item.name.toLowerCase().includes(q) && !item.category.toLowerCase().includes(q)) return false;
-    }
+    if (!matchesQuery(item, state.q)) return false;
     return true;
   }
 
@@ -827,7 +906,8 @@ const DATA = (function () {
     updateExpandAllButton();
   }
 
-  function openChart(item) {
+  function openChart(item, options) {
+    const fromHistory = !!(options && options.fromHistory);
     const dialog = $("chartDialog");
     const last = item.points[item.points.length - 1];
     const first = item.points[0];
@@ -899,11 +979,19 @@ const DATA = (function () {
     tbody.appendChild(fragment);
 
     previousFocusElement = document.activeElement;
+    openItemKey = itemKey(item);
     if (!dialog.open) dialog.showModal();
     updateScrollBtn();
     const closeBtn = $("chartClose");
     if (closeBtn) closeBtn.focus();
     drawChart(item);
+    updateFavoritesUi();
+    if (fromHistory) {
+      chartHistoryPushed = false;
+    } else {
+      syncUrl(true, openItemKey);
+      chartHistoryPushed = true;
+    }
   }
 
   function axisLabel(value) {
@@ -1250,17 +1338,33 @@ const DATA = (function () {
     });
   }
 
-  function closeDialog() {
+  function closeDialog(options) {
+    const fromHistory = !!(options && options.fromHistory);
     const dialog = $("chartDialog");
     if (dialog.open) dialog.close();
     if (chartInstance) {
       chartInstance.destroy();
       chartInstance = null;
     }
+    const hadKey = openItemKey;
+    openItemKey = "";
+    const toastBox = $("toast");
+    if (toastBox && toastBox.parentNode && toastBox.parentNode !== document.body) {
+      document.body.appendChild(toastBox);
+    }
     updateScrollBtn();
-    if (previousFocusElement && typeof previousFocusElement.focus === "function") {
+    if (previousFocusElement && document.contains(previousFocusElement) && typeof previousFocusElement.focus === "function") {
       previousFocusElement.focus();
-      previousFocusElement = null;
+    }
+    previousFocusElement = null;
+    if (fromHistory || !hadKey) {
+      chartHistoryPushed = false;
+    } else if (chartHistoryPushed) {
+      // 상세 창을 열 때 쌓은 방문 기록을 되돌려, 뒤로 가기 동작과 어긋나지 않게 한다.
+      chartHistoryPushed = false;
+      window.history.back();
+    } else {
+      syncUrl(false, "");
     }
   }
 
@@ -1269,14 +1373,79 @@ const DATA = (function () {
     state.category = "";
     state.status = "active";
     state.changedOnly = false;
+    state.favoritesOnly = false;
     state.sort = "category";
     $("q").value = "";
     $("statusFilter").value = "active";
     $("sortFilter").value = "category";
     $("changedToggle").classList.remove("on");
     $("changedToggle").setAttribute("aria-pressed", "false");
+    updateFavoritesUi();
     renderTable();
     syncUrl(true);
+  }
+
+  let toastTimer = null;
+
+  function toast(message) {
+    const box = $("toast");
+    if (!box) return;
+    // <dialog>는 최상위 레이어에 그려져 z-index만으로는 위에 올 수 없다.
+    // 상세 창이 열려 있으면 토스트를 그 안으로 옮겨 화면에 보이게 한다.
+    const dialog = $("chartDialog");
+    const host = dialog && dialog.open ? dialog : document.body;
+    if (box.parentNode !== host) host.appendChild(box);
+    box.textContent = message;
+    box.hidden = false;
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(function () { box.hidden = true; }, 2200);
+  }
+
+  function updateFavoritesUi() {
+    const toggle = $("favoritesToggle");
+    if (!toggle) return;
+    const count = favorites.size;
+    $("favoritesCount").textContent = String(count);
+    toggle.hidden = count === 0 && !state.favoritesOnly;
+    toggle.classList.toggle("on", state.favoritesOnly);
+    toggle.setAttribute("aria-pressed", String(state.favoritesOnly));
+    const star = $("chartFav");
+    if (!star) return;
+    const saved = openItemKey ? favorites.has(openItemKey) : false;
+    star.setAttribute("aria-pressed", String(saved));
+    star.textContent = saved ? "★" : "☆";
+    const label = saved ? "관심 시술에서 빼기" : "관심 시술에 추가";
+    star.setAttribute("aria-label", label);
+    star.title = label;
+  }
+
+  function copyLink(url) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(
+        function () { toast("링크를 복사했습니다."); },
+        function () { toast("주소창의 링크를 복사해 주세요."); }
+      );
+      return;
+    }
+    toast("주소창의 링크를 복사해 주세요.");
+  }
+
+  function shareChart() {
+    const name = $("chartName").textContent;
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({ title: name + " 가격 추이", text: name + " · " + document.title, url: url })
+        .catch(function (error) {
+          if (!error || error.name !== "AbortError") copyLink(url);
+        });
+      return;
+    }
+    copyLink(url);
+  }
+
+  function openChartFromUrl() {
+    const target = findItemByKey(readItemKey(window.location.search));
+    if (target) openChart(target, { fromHistory: true });
   }
 
   // Node 테스트(node --test)에서 순수 로직을 검증할 수 있도록 DOM 없이도 내보낸다.
@@ -1286,6 +1455,8 @@ const DATA = (function () {
         DATA,
         PAGE_SIZE,
         state,
+        items,
+        favorites,
         changedIndexes,
         matches,
         sortItems,
@@ -1293,6 +1464,13 @@ const DATA = (function () {
         groupItemsByBoundary,
         parseUrlState,
         buildQuery,
+        itemKey,
+        findItemByKey,
+        readItemKey,
+        loadFavorites,
+        saveFavorites,
+        toChosung,
+        matchesQuery,
         discountRate,
         currentPrice,
         latestChange,
@@ -1368,6 +1546,12 @@ const DATA = (function () {
     renderTable();
     syncUrl(true);
   });
+  $("favoritesToggle").addEventListener("click", function () {
+    state.favoritesOnly = !state.favoritesOnly;
+    renderTable();
+    updateFavoritesUi();
+    syncUrl(true);
+  });
   $("sortFilter").addEventListener("change", function (event) {
     state.sort = event.target.value;
     renderTable();
@@ -1394,6 +1578,23 @@ const DATA = (function () {
   });
   $("resetFilters").addEventListener("click", resetFilters);
   $("chartClose").addEventListener("click", closeDialog);
+  $("chartShare").addEventListener("click", shareChart);
+  $("chartFav").addEventListener("click", function () {
+    if (!openItemKey) return;
+    const saved = favorites.has(openItemKey);
+    if (saved) favorites.delete(openItemKey);
+    else favorites.add(openItemKey);
+    saveFavorites(storageOrNull(), favorites);
+    if (saved && favorites.size === 0 && state.favoritesOnly) {
+      state.favoritesOnly = false;
+      renderTable(false);
+      syncUrl(false, openItemKey);
+    } else if (state.favoritesOnly) {
+      renderTable(false);
+    }
+    updateFavoritesUi();
+    toast(saved ? "관심 시술에서 뺐습니다." : "관심 시술에 추가했습니다.");
+  });
   $("chartDialog").addEventListener("cancel", function (event) {
     event.preventDefault();
     closeDialog();
@@ -1402,9 +1603,18 @@ const DATA = (function () {
     if (event.target === $("chartDialog")) closeDialog();
   });
   window.addEventListener("popstate", function () {
+    const key = readItemKey(window.location.search);
     readUrlState();
     applyStateToControls();
     renderTable();
+    if (key) {
+      const target = findItemByKey(key);
+      if (target) {
+        openChart(target, { fromHistory: true });
+        return;
+      }
+    }
+    if ($("chartDialog").open) closeDialog({ fromHistory: true });
   });
   document.addEventListener("keydown", function (event) {
     if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
@@ -1423,5 +1633,11 @@ const DATA = (function () {
   buildCategoryChips();
   applyStateToControls();
   renderTable();
-  syncUrl(false);
+  const initialItemKey = readItemKey(window.location.search);
+  if (initialItemKey) {
+    openChartFromUrl();
+    if (!openItemKey) syncUrl(false, "");
+  } else {
+    syncUrl(false);
+  }
 })();

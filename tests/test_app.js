@@ -14,6 +14,7 @@ const DEFAULT_STATE = {
   category: "",
   status: "active",
   changedOnly: false,
+  favoritesOnly: false,
   sort: "category",
   view: "cards",
   pageSize: app.PAGE_SIZE
@@ -37,6 +38,7 @@ beforeEach(function () {
   resetState();
   setData(null, 0);
   app.changedIndexes.clear();
+  app.favorites.clear();
 });
 
 test("returnedPriceText() - 재등장 전후 가격과 동일·인하·인상을 표시한다", () => {
@@ -286,12 +288,84 @@ test("buildQuery() - 기본값은 주소에서 생략하고 바뀐 값만 담는
   assert.equal(app.buildQuery({ ...DEFAULT_STATE, pageSize: 100 }).includes("limit=100"), true);
 });
 
+test("buildQuery() - 관심 필터와 선택한 시술을 주소에 담는다", () => {
+  const key = app.itemKey({ category: "리프팅", name: "리투오 5cc 1회" });
+  const query = app.buildQuery({ ...DEFAULT_STATE, favoritesOnly: true }, key);
+  const params = new URLSearchParams(query);
+  assert.equal(params.get("fav"), "1");
+  assert.equal(params.get("item"), key);
+
+  // 특수문자(||, 공백, 한글)가 있어도 주소 왕복에서 그대로 복원된다.
+  assert.equal(app.readItemKey("?" + query), key);
+  assert.equal(app.parseUrlState("?" + query).favoritesOnly, true);
+});
+
+test("itemKey()/findItemByKey() - 이름이 같아도 카테고리로 구분한다", () => {
+  const a = { category: "A", name: "같은 이름" };
+  const b = { category: "B", name: "같은 이름" };
+  assert.notEqual(app.itemKey(a), app.itemKey(b));
+
+  app.items.push(a, b);
+  assert.equal(app.findItemByKey(app.itemKey(b)), b);
+  assert.equal(app.findItemByKey("없는키"), null);
+  assert.equal(app.findItemByKey(""), null);
+  app.items.pop();
+  app.items.pop();
+});
+
+test("loadFavorites()/saveFavorites() - 저장된 관심 시술을 읽고 쓴다", () => {
+  const store = {
+    data: {},
+    getItem(key) { return Object.prototype.hasOwnProperty.call(this.data, key) ? this.data[key] : null; },
+    setItem(key, value) { this.data[key] = String(value); }
+  };
+  assert.equal(app.loadFavorites(store).size, 0);
+  assert.equal(app.loadFavorites(null).size, 0);
+
+  app.saveFavorites(store, new Set(["A||하나", "B||둘"]));
+  assert.deepEqual(Array.from(app.loadFavorites(store)), ["A||하나", "B||둘"]);
+
+  // 깨진 JSON이나 배열이 아니면 조용히 빈 목록으로 돌아간다.
+  store.data["priceTracker.favorites.v1"] = "{broken";
+  assert.equal(app.loadFavorites(store).size, 0);
+  store.data["priceTracker.favorites.v1"] = "{\"a\":1}";
+  assert.equal(app.loadFavorites(store).size, 0);
+});
+
+test("toChosung()/matchesQuery() - 초성과 영문이 섞인 검색을 지원한다", () => {
+  assert.equal(app.toChosung("피코토닝"), "ㅍㅋㅌㄴ");
+  assert.equal(app.toChosung("FCR 필러"), "fcrㅍㄹ");
+
+  const target = item("피코토닝 1회", [["2026-11-16", 30000]]);
+  assert.equal(app.matchesQuery(target, "피코"), true);
+  assert.equal(app.matchesQuery(target, "ㅍㅋㅌㄴ"), true);
+  assert.equal(app.matchesQuery(target, "ㅍㅋ"), true);
+
+  const lifting = item("리투오 5cc 1회", [["2026-11-16", 600000]]);
+  assert.equal(app.matchesQuery(lifting, "ㄹㅌㅇ"), true);
+  assert.equal(app.matchesQuery(lifting, "5cc"), true);
+  assert.equal(app.matchesQuery(lifting, "ㅍㅋㅌㄴ"), false);
+});
+
+test("matches() - 관심 시술만 보기 필터가 동작한다", () => {
+  const target = item("피코토닝 1회", [["2026-11-16", 30000]], { active: true });
+  resetState({ favoritesOnly: true });
+  assert.equal(app.matches(target), false);
+
+  app.favorites.add(app.itemKey(target));
+  assert.equal(app.matches(target), true);
+
+  resetState({ favoritesOnly: false });
+  assert.equal(app.matches(target), true);
+});
+
 test("parseUrlState(buildQuery(state)) - 주소 왕복에서 상태가 보존된다", () => {
   const state = {
     q: "울쎄라",
     category: "울쎄라피 프라임",
     status: "all",
     changedOnly: true,
+    favoritesOnly: false,
     sort: "discount-desc",
     view: "table",
     pageSize: 100
