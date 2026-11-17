@@ -54,10 +54,10 @@
     </div>
     <div id="monthlyBody" aria-live="polite">
       <p class="small" id="monthlySub"></p>
-      <div class="recent-counts" id="monthlyCounts"></div>
-      <details>
-        <summary class="monthly-ranking-title">인하 금액 TOP 5</summary>
-        <p class="small">시술별 가장 큰 1회 인하 기준 · 재등장 가격 차이는 제외</p>
+      <div class="recent-counts" id="monthlyCounts" role="group" aria-label="월별 변동 종류 필터"></div>
+      <details id="monthlyDetails">
+        <summary class="monthly-ranking-title" id="monthlyListTitle">인하 금액 TOP 5</summary>
+        <p class="small" id="monthlyListHint">시술별 가장 큰 1회 인하 기준 · 재등장 가격 차이는 제외</p>
         <ul class="recent-list" id="monthlyList"></ul>
       </details>
     </div>

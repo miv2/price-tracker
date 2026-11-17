@@ -35,8 +35,17 @@ const DATA = (function () {
   const PAGE_SIZE = 40;
   const FAVORITES_KEY = "priceTracker.favorites.v1";
   const CHOSUNG = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+  const CHANGE_LABELS = { decrease: "인하", increase: "인상", new: "신규", returned: "재등장", removed: "종료" };
+  const MONTHLY_EMPTY = {
+    decrease: "이달에 관측된 가격 인하가 없습니다.",
+    increase: "이달에 관측된 가격 인상이 없습니다.",
+    new: "이달에 새로 등장한 항목이 없습니다.",
+    returned: "이달에 재등장한 항목이 없습니다.",
+    removed: "이달에 종료된 항목이 없습니다."
+  };
   const state = { q: "", category: "", status: "active", changedOnly: false, favoritesOnly: false, sort: "category", view: "cards", pageSize: PAGE_SIZE };
   let displayLimit = PAGE_SIZE;
+  let monthlyKind = "";
   let openItemKey = "";
   let chartHistoryPushed = false;
   const favorites = loadFavorites(storageOrNull());
@@ -371,19 +380,50 @@ const DATA = (function () {
   function renderChangeCounts(countsBox, counts) {
     countsBox.textContent = "";
     const kinds = [
-      ["decrease", "인하", "good"],
-      ["increase", "인상", "bad"],
-      ["new", "신규", ""],
-      ["returned", "재등장", ""],
-      ["removed", "종료", ""]
+      ["decrease", "인하"],
+      ["increase", "인상"],
+      ["new", "신규"],
+      ["returned", "재등장"],
+      ["removed", "종료"]
     ];
     for (const entry of kinds) {
-      const count = counts[entry[0]] || 0;
-      const span = document.createElement("span");
-      span.className = "count" + (count ? " " + entry[2] : " zero");
-      span.textContent = entry[1] + " " + fmt(count);
-      countsBox.appendChild(span);
+      const kind = entry[0];
+      const count = counts[kind] || 0;
+      const selected = monthlyKind === kind;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "count kind-" + kind + (count ? "" : " zero") + (selected ? " on" : "");
+      button.disabled = count === 0;
+      button.dataset.kind = kind;
+      button.setAttribute("aria-pressed", String(selected));
+      button.setAttribute("aria-controls", "monthlyList");
+      button.setAttribute("aria-label", entry[1] + " " + fmt(count) + "건" + (selected ? " · 다시 누르면 인하 금액 TOP 5 보기" : " 보기"));
+      button.title = count
+        ? (selected ? "다시 누르면 인하 금액 TOP 5로 돌아갑니다" : "이달 " + entry[1] + " 항목 보기")
+        : "이달 " + entry[1] + " 항목이 없습니다";
+      const label = document.createElement("span");
+      label.className = "count-label";
+      label.textContent = entry[1];
+      const number = document.createElement("span");
+      number.className = "count-num";
+      number.textContent = fmt(count);
+      button.append(label, number);
+      button.addEventListener("click", function () {
+        monthlyKind = monthlyKind === kind ? "" : kind;
+        renderMonthly($("monthFilter").value);
+        // 다시 그린 버튼으로 포커스를 복원해 키보드로 연속 선택할 수 있게 한다.
+        $("monthlyCounts").querySelector('[data-kind="' + kind + '"]').focus({ preventScroll: true });
+      });
+      countsBox.appendChild(button);
     }
+  }
+
+  function eventsForKind(summary, kind) {
+    if (!summary) return [];
+    if (!kind) return summary.top_decreases || [];
+    return (summary.events || []).filter(function (event) {
+      return event.kind === kind;
+    });
   }
 
   function returnedPriceText(change) {
@@ -402,7 +442,7 @@ const DATA = (function () {
       return;
     }
 
-    const labels = { decrease: "인하", increase: "인상", new: "신규", returned: "재등장", removed: "종료" };
+    const labels = CHANGE_LABELS;
     for (const change of changes) {
       const li = document.createElement("li");
       const btn = document.createElement("button");
@@ -465,16 +505,33 @@ const DATA = (function () {
     }
     select.disabled = !summary;
     if (!summary) {
+      monthlyKind = "";
       $("monthlySub").textContent = "아직 수집 기록이 없습니다.";
       renderChangeCounts($("monthlyCounts"), {});
       renderChangeList($("monthlyList"), [], "기록이 쌓이면 인하 항목이 표시됩니다.");
       return;
     }
+    // 달을 바꿨을 때 이전 달에만 있던 종류가 선택된 채로 남지 않게 한다.
+    if (monthlyKind && !(summary.counts || {})[monthlyKind]) monthlyKind = "";
     select.value = summary.month;
     $("monthlySub").textContent = summary.first_date + " ~ " + summary.last_date + " · " +
       summary.days + "일 수집 · 변동 " + fmt(summary.total) + "건. 수집일 간 변동 횟수 기준입니다." +
       (summary.includes_baseline ? " 첫 수집일은 기준 데이터로 건수에서 제외합니다." : " 월 첫 수집은 직전 수집일과 비교합니다.");
     renderChangeCounts($("monthlyCounts"), summary.counts);
+
+    const title = $("monthlyListTitle");
+    const hint = $("monthlyListHint");
+    if (monthlyKind) {
+      const changes = eventsForKind(summary, monthlyKind);
+      const label = CHANGE_LABELS[monthlyKind] || monthlyKind;
+      if (title) title.textContent = label + " " + fmt(changes.length) + "건";
+      if (hint) hint.textContent = "이달 " + label + " 항목 전체 · 최근 날짜순 · 같은 시술의 반복 변동도 각각 표시합니다. 항목을 누르면 가격 추이가 열립니다.";
+      $("monthlyDetails").open = true;
+      renderChangeList($("monthlyList"), changes, MONTHLY_EMPTY[monthlyKind] || "해당 항목이 없습니다.", true);
+      return;
+    }
+    if (title) title.textContent = "인하 금액 TOP 5";
+    if (hint) hint.textContent = "시술별 가장 큰 1회 인하 기준 · 재등장 가격 차이는 제외";
     renderChangeList($("monthlyList"), summary.top_decreases, "이달에 관측된 가격 인하가 없습니다.", true);
   }
 
@@ -1471,6 +1528,7 @@ const DATA = (function () {
         saveFavorites,
         toChosung,
         matchesQuery,
+        eventsForKind,
         discountRate,
         currentPrice,
         latestChange,
@@ -1537,6 +1595,7 @@ const DATA = (function () {
     syncUrl(true);
   });
   $("monthFilter").addEventListener("change", function (event) {
+    monthlyKind = "";
     renderMonthly(event.target.value);
   });
   $("changedToggle").addEventListener("click", function () {

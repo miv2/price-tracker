@@ -128,6 +128,14 @@ def build_monthly_summary(rows: list[PriceRow], events: list[Payload]) -> list[P
             ):
                 biggest[event["index"]] = event
         top = sorted(biggest.values(), key=lambda event: (event["delta"], event["category"], event["name"]))[:5]
+        # 배지를 눌렀을 때 그 달의 해당 항목을 모두 보여줄 수 있도록 전체 변동을 담는다.
+        # 같은 종류끼리 묶고, 그 안에서는 최근 날짜 → 변동 폭 큰 순으로 정렬한다.
+        ordered = sorted(
+            changes,
+            key=lambda event: -(abs(event["delta"]) if event["delta"] is not None else 0),
+        )
+        ordered.sort(key=lambda event: event["date"], reverse=True)
+        ordered.sort(key=lambda event: KIND_ORDER[event["kind"]])
         summaries.append({
             "month": month,
             "first_date": month_dates[0],
@@ -137,6 +145,7 @@ def build_monthly_summary(rows: list[PriceRow], events: list[Payload]) -> list[P
             "counts": change_counts(changes),
             "total": len(changes),
             "top_decreases": top,
+            "events": ordered,
         })
     return summaries
 

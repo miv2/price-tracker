@@ -359,6 +359,34 @@ test("matches() - 관심 시술만 보기 필터가 동작한다", () => {
   assert.equal(app.matches(target), true);
 });
 
+test("eventsForKind() - 월별 배지 종류에 맞는 항목만 골라낸다", () => {
+  const summary = {
+    top_decreases: [{ kind: "decrease", name: "가장 큰 인하" }],
+    events: [
+      { kind: "decrease", name: "인하1" },
+      { kind: "increase", name: "인상1" },
+      { kind: "new", name: "신규1" },
+      { kind: "returned", name: "재등장1" },
+      { kind: "removed", name: "종료1" },
+      { kind: "removed", name: "종료2" }
+    ]
+  };
+
+  assert.deepEqual(app.eventsForKind(summary, "removed").map((e) => e.name), ["종료1", "종료2"]);
+  assert.deepEqual(app.eventsForKind(summary, "increase").map((e) => e.name), ["인상1"]);
+  assert.deepEqual(app.eventsForKind(summary, "new").map((e) => e.name), ["신규1"]);
+  assert.deepEqual(app.eventsForKind(summary, "returned").map((e) => e.name), ["재등장1"]);
+  const many = { events: Array.from({ length: 12 }, (_, i) => ({ kind: "decrease", name: "인하" + i })) };
+  assert.equal(app.eventsForKind(many, "decrease").length, 12); // TOP 5 제한을 적용하지 않는다.
+  // 선택을 해제하면 기존처럼 인하 금액 TOP 5를 보여준다.
+  assert.deepEqual(app.eventsForKind(summary, "").map((e) => e.name), ["가장 큰 인하"]);
+  assert.deepEqual(app.eventsForKind(summary, null).map((e) => e.name), ["가장 큰 인하"]);
+
+  // 변동 목록이 없는 달·요약이 없을 때도 빈 배열로 안전하게 돌아간다.
+  assert.deepEqual(app.eventsForKind({ top_decreases: [] }, "removed"), []);
+  assert.deepEqual(app.eventsForKind(null, "removed"), []);
+});
+
 test("parseUrlState(buildQuery(state)) - 주소 왕복에서 상태가 보존된다", () => {
   const state = {
     q: "울쎄라",

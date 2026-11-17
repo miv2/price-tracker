@@ -180,6 +180,16 @@ def test_monthly_counts_occurrences_and_ranks_unique_items_by_largest_drop():
         assert event["date"] == "2027-01-02"  # 동일 인하폭이면 가장 최근 기록
         assert payload["items"][event["index"]]["name"] == event["name"]
 
+    # 배지 필터용 전체 변동: 건수 합이 total과 같고, 그 달의 항목만 담는다.
+    assert len(january["events"]) == january["total"] == 23
+    assert all(event["date"].startswith("2027-01") for event in january["events"])
+    assert sum(1 for event in january["events"] if event["kind"] == "removed") == 7
+    assert sum(1 for event in january["events"] if event["kind"] == "decrease") == 14
+    # 종류별로 묶여 있고, 같은 종류 안에서는 최근 날짜가 먼저 온다.
+    for kind in ("decrease", "increase", "new", "returned", "removed"):
+        kind_dates = [event["date"] for event in january["events"] if event["kind"] == kind]
+        assert kind_dates == sorted(kind_dates, reverse=True)
+
 
 def test_repeated_return_uses_most_recent_price_and_unchanged_return_counts():
     rows = [history_row(date, "유지", 1_000) for date in [
@@ -192,6 +202,9 @@ def test_repeated_return_uses_most_recent_price_and_unchanged_return_counts():
     ])
     payload = build_payload(rows, [], "")
     assert payload["monthly"][0]["counts"]["returned"] == 2
+    returns = [event for event in payload["monthly"][0]["events"] if event["kind"] == "returned"]
+    assert [event["date"] for event in returns] == ["2026-11-05", "2026-11-03"]
+    assert all(payload["items"][event["index"]]["name"] == "A" for event in returns)
     assert payload["recent"]["items"][0]["delta"] == 0
     assert payload["recent"]["items"][0]["prev"] == 12_000
 

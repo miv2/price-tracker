@@ -13,7 +13,7 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
 <title>유앤아이의원 가격 추적</title>
-<link rel="stylesheet" href="assets/style.css?v=05ebac3a66">
+<link rel="stylesheet" href="assets/style.css?v=53ac92b32b">
 </head>
 <body>
 <div class="site-strip">YOU<span>&amp;</span>I <strong>수원</strong> · 이벤트 가격 추적</div>
@@ -54,10 +54,10 @@
     </div>
     <div id="monthlyBody" aria-live="polite">
       <p class="small" id="monthlySub"></p>
-      <div class="recent-counts" id="monthlyCounts"></div>
-      <details>
-        <summary class="monthly-ranking-title">인하 금액 TOP 5</summary>
-        <p class="small">시술별 가장 큰 1회 인하 기준 · 재등장 가격 차이는 제외</p>
+      <div class="recent-counts" id="monthlyCounts" role="group" aria-label="월별 변동 종류 필터"></div>
+      <details id="monthlyDetails">
+        <summary class="monthly-ranking-title" id="monthlyListTitle">인하 금액 TOP 5</summary>
+        <p class="small" id="monthlyListHint">시술별 가장 큰 1회 인하 기준 · 재등장 가격 차이는 제외</p>
         <ul class="recent-list" id="monthlyList"></ul>
       </details>
     </div>
@@ -167,8 +167,8 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="assets/vendor/chart.umd.min.js?v=05ebac3a66"></script>
-<script src="assets/data.js?v=fdaa2c0dd5"></script>
-<script src="assets/app.js?v=05ebac3a66"></script>
+<script src="assets/vendor/chart.umd.min.js?v=53ac92b32b"></script>
+<script src="assets/data.js?v=191abe710e"></script>
+<script src="assets/app.js?v=53ac92b32b"></script>
 </body>
 </html>
