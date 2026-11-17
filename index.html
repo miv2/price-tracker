@@ -13,7 +13,7 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
 <title>유앤아이의원 가격 추적</title>
-<link rel="stylesheet" href="assets/style.css?v=53ac92b32b">
+<link rel="stylesheet" href="assets/style.css?v=7a1ce40135">
 </head>
 <body>
 <div class="site-strip">YOU<span>&amp;</span>I <strong>수원</strong> · 이벤트 가격 추적</div>
@@ -61,6 +61,27 @@
         <ul class="recent-list" id="monthlyList"></ul>
       </details>
     </div>
+  </section>
+
+  <section class="estimate" aria-labelledby="estimateTitle">
+    <details id="estimateDetails">
+      <summary class="estimate-summary" id="estimateSummary">
+        <span><strong id="estimateTitle">예상 결제액</strong><span class="small" id="estimateCount">시술 상세에서 계산에 담아 보세요.</span></span>
+        <strong id="estimateTotal">0원</strong>
+      </summary>
+      <p class="small">최신 공개 할인가 기준입니다. 수량 1은 표시된 상품·패키지 1개이며, 회차를 따로 곱하지 않습니다.</p>
+      <ul class="estimate-list" id="estimateList" aria-label="계산에 담은 시술"></ul>
+      <div class="estimate-options">
+        <label><input type="checkbox" id="estimateVat" checked> VAT 10% 포함</label>
+        <button type="button" class="link-btn" id="estimateClear" disabled>전체 비우기</button>
+      </div>
+      <dl class="estimate-totals" aria-live="polite">
+        <div><dt>시술 합계</dt><dd id="estimateSubtotal">0원</dd></div>
+        <div><dt id="estimateVatLabel">VAT (10%)</dt><dd id="estimateTax">0원</dd></div>
+        <div class="estimate-grand-total"><dt>예상 결제액</dt><dd id="estimatePayable">0원</dd></div>
+      </dl>
+      <p class="small">VAT는 시술 합계의 10%를 원 단위로 반올림합니다. 이벤트 적용 조건에 따라 실제 결제액은 달라질 수 있습니다.</p>
+    </details>
   </section>
 
   <div class="section-heading">
@@ -150,6 +171,11 @@
       <button class="icon-btn" id="chartClose" type="button" aria-label="닫기">×</button>
     </div>
   </div>
+  <div class="chart-estimate-actions">
+    <button type="button" class="estimate-add" id="estimateAdd">계산에 담기</button>
+    <button type="button" class="link-btn" id="estimateShow" hidden>계산 내역 보기</button>
+    <span class="small" id="estimateAdded"></span>
+  </div>
   <div class="chart-meta" id="chartMeta"></div>
   <div class="chart-holder"><div class="chart-frame"><canvas id="chartCanvas" role="img" aria-label="가격 추이 그래프"></canvas></div></div>
   <div class="points">
@@ -167,8 +193,8 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="assets/vendor/chart.umd.min.js?v=53ac92b32b"></script>
+<script src="assets/vendor/chart.umd.min.js?v=7a1ce40135"></script>
 <script src="assets/data.js?v=191abe710e"></script>
-<script src="assets/app.js?v=53ac92b32b"></script>
+<script src="assets/app.js?v=7a1ce40135"></script>
 </body>
 </html>

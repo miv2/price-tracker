@@ -47,6 +47,74 @@ test("returnedPriceText() - 재등장 전후 가격과 동일·인하·인상을
   assert.equal(app.returnedPriceText({ prev: 10000, price: 12000, delta: 2000 }), "10,000원 → 12,000원 (종료 전 대비 +2,000원)");
 });
 
+test("calculateEstimate() - 상품 수량과 VAT 전환을 정확히 합산한다", () => {
+  const catalog = [
+    item("토닝 5회 패키지", [["2026-11-16", 10000], ["2026-11-17", 9500]], { active: true }),
+    item("관리", [["2026-11-17", 15005]], { active: true })
+  ];
+  const quantities = new Map([[app.itemKey(catalog[0]), 2], [app.itemKey(catalog[1]), 3]]);
+  const included = app.calculateEstimate(quantities, catalog, true);
+  assert.equal(included.subtotal, 64015); // 패키지의 5회를 다시 곱하지 않는다.
+  assert.equal(included.tax, 6402); // 합계 기준 원 단위 반올림
+  assert.equal(included.total, 70417);
+  assert.equal(included.quantityCount, 5);
+  assert.equal(included.lines[0].lineTotal, 19000); // 최신 수집가 사용
+  const excluded = app.calculateEstimate(quantities, catalog, false);
+  assert.equal(excluded.total, 64015);
+  assert.equal(excluded.tax, 0);
+  assert.equal(app.calculateEstimate(new Map(), [], true).total, 0);
+});
+
+test("calculateEstimate() - 카테고리별로 구분하고 종료·미확인 상품은 합계에서 제외한다", () => {
+  const catalog = [
+    item("같은 이름", [["2026-11-17", 10000]], { active: true, category: "첫방문" }),
+    item("같은 이름", [["2026-11-17", 20000]], { active: true, category: "일반" }),
+    item("종료", [["2026-11-16", 50000]], { active: false }),
+    item("오류", [["2026-11-17", -5000]], { active: true })
+  ];
+  const quantities = new Map(catalog.map((entry) => [app.itemKey(entry), 2]));
+  quantities.set("과거||사라진 상품", 1);
+  const result = app.calculateEstimate(quantities, catalog, true);
+  assert.equal(result.lines.length, 5);
+  assert.equal(result.unavailableCount, 3);
+  assert.equal(result.subtotal, 60000);
+  assert.equal(result.total, 66000);
+  assert.equal(result.lines[2].available, false);
+  assert.equal(result.lines[2].lineTotal, 0);
+  assert.equal(result.lines[4].available, false);
+});
+
+test("validQuantity() - 정수 1~99만 허용하고 계산에서도 잘못된 수량을 제외한다", () => {
+  for (const value of [0, -1, 1.5, 100, Infinity, NaN, "", "abc", true, null, undefined, [], {}]) {
+    assert.equal(app.validQuantity(value), null);
+  }
+  assert.equal(app.validQuantity("3"), 3);
+  assert.equal(app.validQuantity(99), 99);
+  const target = item("A", [["2026-11-17", 10000]], { active: true });
+  assert.equal(app.calculateEstimate(new Map([[app.itemKey(target), -1]]), [target], true).total, 0);
+});
+
+test("loadEstimate()/saveEstimate() - 수량·VAT 설정 저장 및 손상된 데이터 복구", () => {
+  const storage = { value: null, getItem() { return this.value; }, setItem(key, value) { this.value = value; } };
+  const original = { quantities: new Map([["카테고리||A", 3], ["카테고리||B", 99]]), includeVat: false };
+  app.saveEstimate(storage, original);
+  const restored = app.loadEstimate(storage);
+  assert.deepEqual(Array.from(restored.quantities), Array.from(original.quantities));
+  assert.equal(restored.includeVat, false);
+  original.quantities.clear();
+  app.saveEstimate(storage, original);
+  assert.equal(app.loadEstimate(storage).quantities.size, 0);
+  storage.value = JSON.stringify({ items: [["유효", 2], ["음수", -1], ["소수", 2.3], ["초과", 100], ["불리언", true], [null, 1], {}], includeVat: "false" });
+  assert.deepEqual(Array.from(app.loadEstimate(storage).quantities), [["유효", 2]]);
+  assert.equal(app.loadEstimate(storage).includeVat, true);
+  storage.value = "{broken";
+  assert.equal(app.loadEstimate(storage).quantities.size, 0);
+  assert.equal(app.loadEstimate(null).includeVat, true);
+  const blocked = { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); } };
+  assert.equal(app.loadEstimate(blocked).quantities.size, 0);
+  assert.doesNotThrow(() => app.saveEstimate(blocked, original));
+});
+
 test("discountRate() - 정가와 할인가 비율을 올바르게 계산한다", () => {
   const itemWithDiscount = {
     list_price: 100000,

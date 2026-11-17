@@ -34,6 +34,8 @@ const DATA = (function () {
   const changedIndexes = new Set((RECENT.items || []).map(function (change) { return change.index; }));
   const PAGE_SIZE = 40;
   const FAVORITES_KEY = "priceTracker.favorites.v1";
+  const ESTIMATE_KEY = "priceTracker.estimate.v1";
+  const MAX_QUANTITY = 99;
   const CHOSUNG = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
   const CHANGE_LABELS = { decrease: "인하", increase: "인상", new: "신규", returned: "재등장", removed: "종료" };
   const MONTHLY_EMPTY = {
@@ -49,6 +51,7 @@ const DATA = (function () {
   let openItemKey = "";
   let chartHistoryPushed = false;
   const favorites = loadFavorites(storageOrNull());
+  const estimate = loadEstimate(storageOrNull());
   const expandedCategories = new Set();
   let currentFilteredList = [];
   let currentPageItems = [];
@@ -104,6 +107,191 @@ const DATA = (function () {
     } catch (error) {
       // 저장 공간이 없거나 프라이빗 모드면 이번 방문 동안만 유지한다.
     }
+  }
+
+  function validQuantity(value) {
+    if (typeof value !== "number" && typeof value !== "string") return null;
+    const quantity = Number(value);
+    return Number.isInteger(quantity) && quantity >= 1 && quantity <= MAX_QUANTITY ? quantity : null;
+  }
+
+  function loadEstimate(storage) {
+    const result = { quantities: new Map(), includeVat: true };
+    try {
+      const raw = storage && JSON.parse(storage.getItem(ESTIMATE_KEY));
+      if (!raw || !Array.isArray(raw.items)) return result;
+      if (typeof raw.includeVat === "boolean") result.includeVat = raw.includeVat;
+      for (const entry of raw.items) {
+        if (!Array.isArray(entry) || typeof entry[0] !== "string" || !entry[0]) continue;
+        const quantity = validQuantity(entry[1]);
+        if (quantity !== null) result.quantities.set(entry[0], quantity);
+      }
+    } catch (error) {
+      // 저장이 차단되거나 데이터가 손상되어도 이번 방문 동안 계산할 수 있다.
+    }
+    return result;
+  }
+
+  function saveEstimate(storage, value) {
+    try {
+      if (storage) storage.setItem(ESTIMATE_KEY, JSON.stringify({
+        items: Array.from(value.quantities), includeVat: value.includeVat
+      }));
+    } catch (error) {
+      // 저장 실패는 현재 계산에 영향을 주지 않는다.
+    }
+  }
+
+  function calculateEstimate(quantities, catalog, includeVat) {
+    const byKey = new Map(catalog.map(function (item) { return [itemKey(item), item]; }));
+    const lines = [];
+    let subtotal = 0;
+    let quantityCount = 0;
+    let unavailableCount = 0;
+    for (const [key, value] of quantities) {
+      const quantity = validQuantity(value);
+      if (quantity === null) continue;
+      const item = byKey.get(key);
+      const price = item && Array.isArray(item.points) && item.points.length ? currentPrice(item) : null;
+      const available = !!(item && item.active && Number.isSafeInteger(price) && price >= 0);
+      const lineTotal = available ? price * quantity : 0;
+      subtotal += lineTotal;
+      quantityCount += quantity;
+      if (!available) unavailableCount += 1;
+      lines.push({ key, item, quantity, available, price, lineTotal });
+    }
+    const tax = includeVat ? Math.round(subtotal / 10) : 0;
+    return { lines, subtotal, tax, total: subtotal + tax, quantityCount, unavailableCount };
+  }
+
+  function updateEstimateChart() {
+    const item = findItemByKey(openItemKey);
+    const quantity = estimate.quantities.get(openItemKey) || 0;
+    const add = $("estimateAdd");
+    add.disabled = !item || !item.active || quantity >= MAX_QUANTITY;
+    add.textContent = !item || !item.active ? "종료된 상품은 담을 수 없습니다" :
+      quantity >= MAX_QUANTITY ? "최대 99개까지 담을 수 있습니다" : "계산에 담기";
+    $("estimateAdded").textContent = quantity ? "이 상품 " + quantity + "개 담음" : "";
+    $("estimateShow").hidden = estimate.quantities.size === 0;
+  }
+
+  function renderEstimateTotals() {
+    const result = calculateEstimate(estimate.quantities, items, estimate.includeVat);
+    $("estimateCount").textContent = result.lines.length ? result.lines.length + "종 · " + result.quantityCount + "개 · " +
+      (estimate.includeVat ? "VAT 포함" : "VAT 별도") +
+      (result.unavailableCount ? " · 종료·미확인 " + result.unavailableCount + "종 합계 제외" : "") : "시술 상세에서 계산에 담아 보세요.";
+    $("estimateTotal").textContent = won(result.total);
+    $("estimateSubtotal").textContent = won(result.subtotal);
+    $("estimateTax").textContent = won(result.tax);
+    $("estimateVatLabel").textContent = estimate.includeVat ? "VAT (10%)" : "VAT 미포함";
+    $("estimatePayable").textContent = won(result.total);
+    $("estimateVat").checked = estimate.includeVat;
+    $("estimateClear").disabled = result.lines.length === 0;
+    return result;
+  }
+
+  function renderEstimate() {
+    const focusedId = document.activeElement && document.activeElement.id;
+    const result = renderEstimateTotals();
+    const list = $("estimateList");
+    list.textContent = "";
+    if (!result.lines.length) {
+      const empty = document.createElement("li");
+      empty.className = "small estimate-empty";
+      empty.textContent = "담은 시술이 없습니다. 시술을 선택하고 ‘계산에 담기’를 눌러주세요.";
+      list.appendChild(empty);
+    }
+    result.lines.forEach(function (line, index) {
+      const row = document.createElement("li");
+      row.className = "estimate-row";
+      const info = document.createElement("div");
+      info.className = "estimate-info";
+      const category = document.createElement("span");
+      category.className = "small";
+      category.textContent = line.item ? line.item.category : "미확인 상품";
+      const name = document.createElement("strong");
+      name.textContent = line.item ? line.item.name : line.key;
+      const detail = document.createElement("span");
+      detail.className = "small";
+      detail.textContent = line.available ? "상품 1개 " + won(line.price) : "종료·미확인 상품 · 합계에서 제외";
+      info.append(category, name, detail);
+      const controls = document.createElement("div");
+      controls.className = "estimate-quantity";
+      function changeQuantity(quantity) {
+        const valid = validQuantity(quantity);
+        if (valid !== null) estimate.quantities.set(line.key, valid);
+        saveEstimate(storageOrNull(), estimate);
+        renderEstimate();
+      }
+      function button(text, label, action, id) {
+        const node = document.createElement("button");
+        node.type = "button";
+        node.textContent = text;
+        node.setAttribute("aria-label", name.textContent + " " + label);
+        node.id = id;
+        node.addEventListener("click", action);
+        return node;
+      }
+      const minus = button("−", "수량 줄이기", function () { changeQuantity(line.quantity - 1); }, "estimateMinus" + index);
+      minus.disabled = !line.available || line.quantity <= 1;
+      const quantity = document.createElement("input");
+      quantity.type = "number";
+      quantity.inputMode = "numeric";
+      quantity.min = "1";
+      quantity.max = String(MAX_QUANTITY);
+      quantity.step = "1";
+      quantity.value = String(line.quantity);
+      quantity.id = "estimateQty" + index;
+      quantity.setAttribute("aria-label", name.textContent + " 상품 수량");
+      quantity.disabled = !line.available;
+      quantity.addEventListener("input", function () {
+        const value = validQuantity(quantity.value);
+        if (value === null) {
+          if (quantity.value !== "") quantity.value = String(line.quantity);
+          return;
+        }
+        line.quantity = value;
+        estimate.quantities.set(line.key, value);
+        saveEstimate(storageOrNull(), estimate);
+        renderEstimateTotals();
+        total.textContent = won(line.price * value);
+        minus.disabled = value <= 1;
+        plus.disabled = value >= MAX_QUANTITY;
+        updateEstimateChart();
+      });
+      quantity.addEventListener("blur", function () {
+        quantity.value = String(line.quantity);
+      });
+      const plus = button("+", "수량 늘리기", function () { changeQuantity(line.quantity + 1); }, "estimatePlus" + index);
+      plus.disabled = !line.available || line.quantity >= MAX_QUANTITY;
+      controls.append(minus, quantity, plus);
+      const total = document.createElement("strong");
+      total.className = "estimate-line-total";
+      total.textContent = line.available ? won(line.lineTotal) : "합계 제외";
+      const remove = button("삭제", "계산에서 삭제", function () {
+        estimate.quantities.delete(line.key);
+        saveEstimate(storageOrNull(), estimate);
+        renderEstimate();
+        $("estimateSummary").focus({ preventScroll: true });
+      }, "estimateRemove" + index);
+      remove.className = "link-btn";
+      row.append(info, controls, total, remove);
+      list.appendChild(row);
+    });
+    updateEstimateChart();
+    if (focusedId && $(focusedId) && !$(focusedId).disabled) $(focusedId).focus({ preventScroll: true });
+  }
+
+  function addToEstimate(item) {
+    if (!item || !item.active) return;
+    const key = itemKey(item);
+    const quantity = estimate.quantities.get(key) || 0;
+    if (quantity >= MAX_QUANTITY) return;
+    estimate.quantities.set(key, quantity + 1);
+    saveEstimate(storageOrNull(), estimate);
+    renderEstimate();
+    $("estimateDetails").open = true;
+    toast("계산에 담았습니다. 이 상품 " + (quantity + 1) + "개");
   }
 
   // 한글을 초성으로 바꿔 "ㅍㅋㅌㄴ" 같은 초성 검색을 가능하게 한다.
@@ -1043,6 +1231,7 @@ const DATA = (function () {
     if (closeBtn) closeBtn.focus();
     drawChart(item);
     updateFavoritesUi();
+    updateEstimateChart();
     if (fromHistory) {
       chartHistoryPushed = false;
     } else {
@@ -1526,6 +1715,10 @@ const DATA = (function () {
         readItemKey,
         loadFavorites,
         saveFavorites,
+        validQuantity,
+        loadEstimate,
+        saveEstimate,
+        calculateEstimate,
         toChosung,
         matchesQuery,
         eventsForKind,
@@ -1546,6 +1739,27 @@ const DATA = (function () {
     }
     return;
   }
+
+  $("estimateAdd").addEventListener("click", function () {
+    addToEstimate(findItemByKey(openItemKey));
+  });
+  $("estimateShow").addEventListener("click", function () {
+    closeDialog();
+    $("estimateDetails").open = true;
+    $("estimateSummary").focus({ preventScroll: true });
+    $("estimateDetails").scrollIntoView({ block: "start", behavior: "smooth" });
+  });
+  $("estimateVat").addEventListener("change", function (event) {
+    estimate.includeVat = event.target.checked;
+    saveEstimate(storageOrNull(), estimate);
+    renderEstimate();
+  });
+  $("estimateClear").addEventListener("click", function () {
+    estimate.quantities.clear();
+    saveEstimate(storageOrNull(), estimate);
+    renderEstimate();
+    $("estimateSummary").focus({ preventScroll: true });
+  });
 
   $("loadMoreBtn").addEventListener("click", function () {
     displayLimit += state.pageSize;
@@ -1737,6 +1951,7 @@ const DATA = (function () {
   renderStats();
   renderRecent();
   renderMonthly();
+  renderEstimate();
   renderStale();
   buildCategoryChips();
   applyStateToControls();
