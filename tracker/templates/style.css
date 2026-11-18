@@ -26,36 +26,6 @@
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 11.5l-5-5h10l-5 5z'/%3E%3C/svg%3E");
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #141316;
-    --panel: #1e1d21;
-    --text: #f3eff1;
-    --muted: #a69fa4;
-    --line: #2e2b32;
-    --accent: #e55388;
-    --accent-soft: rgba(229, 83, 136, 0.14);
-    --up: #f0775e;
-    --down: #f06292;
-    --flat: #a8a0a5;
-    --shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-    --teal: #22d3ee;
-    --subtle-bg: #19181c;
-    --card-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-    --banner-bg: #2b2327;
-    --banner-grad-1: #3d262f;
-    --banner-grad-2: #332028;
-    --banner-grad-3: #2a1c22;
-    --banner-text: #f3eff1;
-    --more-btn-bg: #27252a;
-    --more-btn-text: #b5aeb3;
-    --more-btn-hover: #312e35;
-    --more-btn-cyan: #22d3ee;
-    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23a69fa4' viewBox='0 0 16 16'%3E%3Cpath d='M8 11.5l-5-5h10l-5 5z'/%3E%3C/svg%3E");
-  }
-}
-
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #141316;
@@ -107,8 +77,8 @@ header.hero {
 .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .theme-toggle-btn {
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -118,8 +88,7 @@ header.hero {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 17px;
-  transition: all .16s ease;
+  transition: border-color .16s ease, background-color .16s ease, transform .16s ease;
   touch-action: manipulation;
 }
 .theme-toggle-btn:hover {
@@ -133,14 +102,9 @@ header.hero {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.theme-icon-sun { display: none; }
-.theme-icon-moon { display: inline-block; }
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .theme-icon-sun { display: inline-block; }
-  :root:not([data-theme="light"]) .theme-icon-moon { display: none; }
-}
-:root[data-theme="dark"] .theme-icon-sun { display: inline-block; }
+.theme-icon { display: none; width: 21px; height: 21px; }
+.theme-icon-moon { display: block; }
+:root[data-theme="dark"] .theme-icon-sun { display: block; }
 :root[data-theme="dark"] .theme-icon-moon { display: none; }
 .brand { color: var(--text); font-size: 27px; font-weight: 900; letter-spacing: -.065em; line-height: 1; }
 .brand .amp { color: var(--teal); }
@@ -185,13 +149,10 @@ main { padding: 22px 0 60px; }
   color: #a8480c;
   font-size: 13.5px;
 }
-:root[data-theme="dark"] .notice,
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .notice {
-    background: #2b1f13;
-    border-color: #5c3818;
-    color: #f7b977;
-  }
+:root[data-theme="dark"] .notice {
+  background: #2b1f13;
+  border-color: #5c3818;
+  color: #f7b977;
 }
 .notice a { margin-left: auto; font-weight: 600; white-space: nowrap; }
 /* 요약 허브 (Summary Hub) */
@@ -238,11 +199,8 @@ main { padding: 22px 0 60px; }
   color: var(--text);
   background: rgba(255, 255, 255, .6);
 }
-:root[data-theme="dark"] .summary-tab:hover,
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .summary-tab:hover {
-    background: rgba(255, 255, 255, .06);
-  }
+:root[data-theme="dark"] .summary-tab:hover {
+  background: rgba(255, 255, 255, .06);
 }
 .summary-tab.active {
   background: var(--panel);
@@ -1187,11 +1145,6 @@ dialog::backdrop { background: rgba(12, 16, 24, .55); backdrop-filter: blur(2px)
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .recent-counts .count-num { background: rgba(255, 255, 255, .1); }
-  :root:not([data-theme="light"]) .recent-counts .count.zero { background: var(--panel); }
-  :root:not([data-theme="light"]) .toast { background: rgba(240, 235, 238, .95); color: #1a181c; }
-}
 :root[data-theme="dark"] .recent-counts .count-num { background: rgba(255, 255, 255, .1); }
 :root[data-theme="dark"] .recent-counts .count.zero { background: var(--panel); }
 :root[data-theme="dark"] .toast { background: rgba(240, 235, 238, .95); color: #1a181c; }

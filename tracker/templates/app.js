@@ -131,28 +131,22 @@ const DATA = (function () {
     }
   }
 
-  function getSystemTheme() {
-    if (typeof window === "undefined" || !window.matchMedia) return "light";
-    try {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    } catch (error) {
-      return "light";
-    }
-  }
-
   function getEffectiveTheme(storage) {
-    return loadTheme(storage) || getSystemTheme();
+    // 저장된 값이 없으면 항상 라이트 모드로 시작한다(시스템 설정을 따르지 않음).
+    return loadTheme(storage) || "light";
   }
 
   function applyTheme(theme, persist, storage) {
     if (typeof document !== "undefined") {
-      document.documentElement.setAttribute("data-theme", theme);
+      const dark = theme === "dark";
+      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
       const meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.setAttribute("content", theme === "dark" ? "#141316" : "#ffffff");
+      if (meta) meta.setAttribute("content", dark ? "#141316" : "#ffffff");
       const btn = $("themeToggle");
       if (btn) {
-        const nextMode = theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환";
+        const nextMode = dark ? "라이트 모드로 전환" : "다크 모드로 전환";
         btn.setAttribute("aria-label", nextMode);
+        btn.setAttribute("aria-pressed", String(dark));
         btn.title = nextMode;
       }
       if ($("chartDialog") && $("chartDialog").open && openItemKey) {
@@ -166,8 +160,7 @@ const DATA = (function () {
   }
 
   function toggleTheme() {
-    const current = getEffectiveTheme(storageOrNull());
-    const next = current === "dark" ? "light" : "dark";
+    const next = getEffectiveTheme(storageOrNull()) === "dark" ? "light" : "dark";
     applyTheme(next, true, storageOrNull());
     toast(next === "dark" ? "다크 모드로 전환되었습니다." : "라이트 모드로 전환되었습니다.");
   }
@@ -175,18 +168,7 @@ const DATA = (function () {
   function initTheme() {
     const btn = $("themeToggle");
     if (btn) btn.addEventListener("click", toggleTheme);
-    if (typeof window !== "undefined" && window.matchMedia) {
-      const mq = window.matchMedia("(prefers-color-scheme: dark)");
-      const handler = function (e) {
-        if (!loadTheme(storageOrNull())) {
-          applyTheme(e.matches ? "dark" : "light", false);
-        }
-      };
-      if (mq.addEventListener) mq.addEventListener("change", handler);
-      else if (mq.addListener) mq.addListener(handler);
-    }
-    const current = getEffectiveTheme(storageOrNull());
-    applyTheme(current, false);
+    applyTheme(getEffectiveTheme(storageOrNull()), false);
   }
 
   function vatPrice(price) {
@@ -1940,7 +1922,6 @@ const DATA = (function () {
         THEME_KEY,
         loadTheme,
         saveTheme,
-        getSystemTheme,
         getEffectiveTheme,
         applyTheme,
         vatPrice,

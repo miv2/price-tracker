@@ -81,7 +81,7 @@ test("loadVatIncluded()/saveVatIncluded() - VAT 표시 설정을 저장하고 �
   assert.doesNotThrow(() => app.saveVatIncluded(null, true));
 });
 
-test("loadTheme()/saveTheme()/getEffectiveTheme() - 다크/라이트 테마 설정을 저장하고 복원한다", () => {
+test("loadTheme()/saveTheme()/getEffectiveTheme() - 테마 설정을 저장하고 복원하며 기본은 라이트다", () => {
   const store = new Map();
   const storage = {
     getItem: (key) => (store.has(key) ? store.get(key) : null),
@@ -90,7 +90,8 @@ test("loadTheme()/saveTheme()/getEffectiveTheme() - 다크/라이트 테마 설�
   };
 
   assert.equal(app.loadTheme(storage), null);
-  assert.equal(app.getEffectiveTheme(storage), "light"); // Node 환경은 기본 light
+  assert.equal(app.getEffectiveTheme(storage), "light"); // 저장된 값이 없으면 시스템 설정과 무관하게 라이트
+  assert.equal(app.getEffectiveTheme(null), "light");
 
   app.saveTheme(storage, "dark");
   assert.equal(storage.getItem("priceTracker.theme.v1"), "dark");
