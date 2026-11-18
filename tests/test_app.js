@@ -12,6 +12,7 @@ const app = require("../tracker/templates/app.js");
 const DEFAULT_STATE = {
   q: "",
   category: "",
+  budget: "",
   status: "active",
   changedOnly: false,
   favoritesOnly: false,
@@ -290,6 +291,61 @@ test("matches() - 상태, 검색어, 카테고리 필터링 조건을 정확히 
   assert.equal(app.matches(itemB), true);
 });
 
+test("matchesBudget() - 누적 상한 구간의 경계값을 정확히 판정한다", () => {
+  const priced = (value) => ({ name: "시술", points: [["2026-11-18", value]] });
+
+  assert.equal(app.matchesBudget(priced(29000), ""), true);
+
+  assert.equal(app.matchesBudget(priced(30000), "under-3"), true);
+  assert.equal(app.matchesBudget(priced(30001), "under-3"), false);
+  assert.equal(app.matchesBudget(priced(30001), "under-5"), true);
+
+  assert.equal(app.matchesBudget(priced(50000), "under-5"), true);
+  assert.equal(app.matchesBudget(priced(50001), "under-5"), false);
+  assert.equal(app.matchesBudget(priced(50001), "under-10"), true);
+
+  assert.equal(app.matchesBudget(priced(100000), "under-10"), true);
+  assert.equal(app.matchesBudget(priced(100001), "under-10"), false);
+  assert.equal(app.matchesBudget(priced(100001), "over-10"), true);
+  assert.equal(app.matchesBudget(priced(100000), "over-10"), false);
+
+  // 가격을 확인할 수 없는 항목은 예산 구간에서 제외하고, 전체 칩에서는 남긴다.
+  assert.equal(app.matchesBudget(priced(null), "under-3"), false);
+  assert.equal(app.matchesBudget(priced(null), ""), true);
+});
+
+test("matchesBudget() - VAT 포함 표시 중에는 화면 금액 기준으로 판정한다", () => {
+  const target = { name: "피코토닝 1회", points: [["2026-11-18", 29000]] };
+
+  app.state.vatIncluded = false;
+  assert.equal(app.matchesBudget(target, "under-3"), true);
+
+  app.state.vatIncluded = true; // 29,000원 → 31,900원
+  assert.equal(app.matchesBudget(target, "under-3"), false);
+  assert.equal(app.matchesBudget(target, "under-5"), true);
+
+  app.state.vatIncluded = false;
+});
+
+test("matches() - 예산 칩은 카테고리·검색어와 AND로 결합된다", () => {
+  const cheap = { idx: 0, active: true, category: "피부", name: "피코토닝 1회", points: [["2026-11-18", 49000]] };
+  const pricey = { idx: 1, active: true, category: "피부", name: "울쎄라 300샷", points: [["2026-11-18", 120000]] };
+
+  resetState({ status: "active", budget: "under-5", category: "피부" });
+  assert.equal(app.matches(cheap), true);
+  assert.equal(app.matches(pricey), false);
+
+  resetState({ status: "active", budget: "over-10", category: "피부" });
+  assert.equal(app.matches(cheap), false);
+  assert.equal(app.matches(pricey), true);
+
+  // 검색어와 함께 걸어도 두 조건을 모두 만족해야 남는다.
+  resetState({ status: "active", budget: "under-5", q: "울쎄라" });
+  assert.equal(app.matches(pricey), false);
+  resetState({ status: "active", budget: "over-10", q: "울쎄라" });
+  assert.equal(app.matches(pricey), true);
+});
+
 test("sortItems() - 가격순, 할인율순, 이름순 정렬이 올바르게 동작한다", () => {
   const list = [
     { name: "C", category: "피부", list_price: 100000, points: [["2026-11-15", 30000]] }, // 70% 할인
@@ -523,6 +579,7 @@ test("parseUrlState(buildQuery(state)) - 주소 왕복에서 상태가 보존된
   const state = {
     q: "울쎄라",
     category: "울쎄라피 프라임",
+    budget: "over-10",
     status: "all",
     changedOnly: true,
     favoritesOnly: false,
@@ -531,6 +588,26 @@ test("parseUrlState(buildQuery(state)) - 주소 왕복에서 상태가 보존된
     pageSize: 100
   };
   assert.deepEqual(app.parseUrlState("?" + app.buildQuery(state)), state);
+});
+
+test("parseUrlState()/buildQuery() - budget 파라미터를 보존하고 잘못된 값은 무시한다", () => {
+  assert.equal(app.parseUrlState("?budget=under-3").budget, "under-3");
+  assert.equal(app.parseUrlState("?budget=under-5").budget, "under-5");
+  assert.equal(app.parseUrlState("?budget=under-10").budget, "under-10");
+  assert.equal(app.parseUrlState("?budget=over-10").budget, "over-10");
+
+  // 알 수 없는 코드는 전체로 되돌린다.
+  assert.equal(app.parseUrlState("?budget=under-7").budget, "");
+  assert.equal(app.parseUrlState("?budget=30000").budget, "");
+
+  const query = app.buildQuery({ ...DEFAULT_STATE, category: "피부", budget: "under-5" });
+  const params = new URLSearchParams(query);
+  assert.equal(params.get("budget"), "under-5");
+  assert.equal(params.get("category"), "피부");
+  assert.equal(app.parseUrlState("?" + query).budget, "under-5");
+
+  // 전체("")는 주소에 남기지 않는다.
+  assert.equal(new URLSearchParams(app.buildQuery(DEFAULT_STATE)).has("budget"), false);
 });
 
 test("isLow30() - 최근 30일 최저가일 때만 배지를 붙인다", () => {

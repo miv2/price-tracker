@@ -48,7 +48,7 @@ const DATA = (function () {
     returned: "이달에 재등장한 항목이 없습니다.",
     removed: "이달에 종료된 항목이 없습니다."
   };
-  const state = { q: "", category: "", status: "active", changedOnly: false, favoritesOnly: false, sort: "category", view: "cards", pageSize: PAGE_SIZE, vatIncluded: loadVatIncluded(storageOrNull()) };
+  const state = { q: "", category: "", budget: "", status: "active", changedOnly: false, favoritesOnly: false, sort: "category", view: "cards", pageSize: PAGE_SIZE, vatIncluded: loadVatIncluded(storageOrNull()) };
   let displayLimit = PAGE_SIZE;
   let monthlyKind = "";
   let openItemKey = "";
@@ -64,6 +64,16 @@ const DATA = (function () {
   const $ = (id) => document.getElementById(id);
 
   const SORT_VALUES = ["category", "recent", "discount-desc", "price-desc", "price-asc", "name"];
+
+  // 누적 상한형 예산 구간. 마지막 칩만 "10만원 초과"를 모은다.
+  const BUDGET_OPTIONS = [
+    { value: "", label: "전체" },
+    { value: "under-3", label: "~3만원", max: 30000 },
+    { value: "under-5", label: "~5만원", max: 50000 },
+    { value: "under-10", label: "~10만원", max: 100000 },
+    { value: "over-10", label: "10만원+" }
+  ];
+  const BUDGET_VALUES = BUDGET_OPTIONS.map(function (option) { return option.value; });
 
   function itemKey(item) {
     return (item.category || "") + "||" + item.name;
@@ -421,10 +431,23 @@ const DATA = (function () {
     return toChosung(item.name).includes(chosungQuery) || toChosung(item.category).includes(chosungQuery);
   }
 
+  // 예산 칩은 화면에 보이는 금액(VAT 포함 여부 반영)을 기준으로 판정한다.
+  function matchesBudget(item, budgetCode) {
+    if (!budgetCode) return true;
+    const price = displayPrice(currentPrice(item));
+    if (price === null || price === undefined || !Number.isFinite(price)) return false;
+    if (budgetCode === "under-3") return price <= 30000;
+    if (budgetCode === "under-5") return price <= 50000;
+    if (budgetCode === "under-10") return price <= 100000;
+    if (budgetCode === "over-10") return price > 100000;
+    return true;
+  }
+
   function parseUrlState(search) {
     const next = {
       q: "",
       category: "",
+      budget: "",
       status: "active",
       changedOnly: false,
       favoritesOnly: false,
@@ -437,6 +460,8 @@ const DATA = (function () {
     if (q) next.q = q;
     const category = params.get("category");
     if (category) next.category = category;
+    const budget = params.get("budget");
+    if (BUDGET_VALUES.indexOf(budget) !== -1) next.budget = budget;
     const status = params.get("status");
     if (status === "active" || status === "ended" || status === "all") next.status = status;
     if (params.get("changed") === "1") next.changedOnly = true;
@@ -459,6 +484,7 @@ const DATA = (function () {
     const params = new URLSearchParams();
     if (current.q) params.set("q", current.q);
     if (current.category) params.set("category", current.category);
+    if (current.budget) params.set("budget", current.budget);
     if (current.status !== "active") params.set("status", current.status);
     if (current.changedOnly) params.set("changed", "1");
     if (current.favoritesOnly) params.set("fav", "1");
@@ -485,6 +511,7 @@ const DATA = (function () {
     });
     if (!known) state.category = "";
     syncCategoryChips(true);
+    syncBudgetChips(true);
     $("statusFilter").value = state.status;
     $("sortFilter").value = state.sort;
     $("pageSizeFilter").value = state.pageSize === Infinity ? "all" : String(state.pageSize);
@@ -888,6 +915,40 @@ const DATA = (function () {
     strip.scrollLeft += chipRect.left - stripRect.left - (strip.clientWidth - chipRect.width) / 2;
   }
 
+  function buildBudgetChips() {
+    const strip = $("budgetChips");
+    if (!strip) return;
+    BUDGET_OPTIONS.forEach(function (option) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.budget = option.value;
+      button.textContent = option.label;
+      button.setAttribute("aria-pressed", "false");
+      button.addEventListener("click", function () {
+        state.budget = option.value;
+        renderTable();
+        updateFilterDot();
+        syncUrl(true);
+      });
+      strip.appendChild(button);
+    });
+  }
+
+  function syncBudgetChips(scrollToActive) {
+    const strip = $("budgetChips");
+    if (!strip) return;
+    let active = null;
+    strip.querySelectorAll("button").forEach(function (button) {
+      const on = button.dataset.budget === state.budget;
+      button.setAttribute("aria-pressed", String(on));
+      if (on) active = button;
+    });
+    if (!scrollToActive || !active) return;
+    const stripRect = strip.getBoundingClientRect();
+    const chipRect = active.getBoundingClientRect();
+    strip.scrollLeft += chipRect.left - stripRect.left - (strip.clientWidth - chipRect.width) / 2;
+  }
+
   function matches(item) {
     if (state.status === "active" && !item.active) return false;
     if (state.status === "ended" && item.active) return false;
@@ -895,6 +956,7 @@ const DATA = (function () {
     if (state.favoritesOnly && !favorites.has(itemKey(item))) return false;
     if (state.category && item.category !== state.category) return false;
     if (!matchesQuery(item, state.q)) return false;
+    if (!matchesBudget(item, state.budget)) return false;
     return true;
   }
 
@@ -1222,6 +1284,7 @@ const DATA = (function () {
     const fragment = document.createDocumentFragment();
     currentFilteredList = sortItems(items.filter(matches));
     syncCategoryChips(false);
+    syncBudgetChips(false);
     let pageItems;
     let groups = null;
     if (state.sort === "category") {
@@ -1736,6 +1799,7 @@ const DATA = (function () {
   function resetFilters() {
     state.q = "";
     state.category = "";
+    state.budget = "";
     state.status = "active";
     state.changedOnly = false;
     state.favoritesOnly = false;
@@ -1745,6 +1809,7 @@ const DATA = (function () {
     $("sortFilter").value = "category";
     $("changedToggle").classList.remove("on");
     $("changedToggle").setAttribute("aria-pressed", "false");
+    syncBudgetChips();
     updateFavoritesUi();
     updateFilterDot();
     renderTable();
@@ -1801,7 +1866,7 @@ const DATA = (function () {
   function updateFilterDot() {
     const dot = $("filterActiveDot");
     if (!dot) return;
-    const isCustom = state.status !== "active" || state.changedOnly || state.vatIncluded || state.view !== "cards" || state.pageSize !== PAGE_SIZE;
+    const isCustom = state.status !== "active" || state.changedOnly || state.budget !== "" || state.vatIncluded || state.view !== "cards" || state.pageSize !== PAGE_SIZE;
     dot.hidden = !isCustom;
     const btn = $("filterMoreToggle");
     if (btn) {
@@ -1912,6 +1977,8 @@ const DATA = (function () {
         groupItemsByBoundary,
         parseUrlState,
         buildQuery,
+        matchesBudget,
+        BUDGET_OPTIONS,
         itemKey,
         findItemByKey,
         readItemKey,
@@ -2185,6 +2252,7 @@ const DATA = (function () {
   renderEstimate();
   renderStale();
   buildCategoryChips();
+  buildBudgetChips();
   applyStateToControls();
   updateFilterDot();
   renderTable();

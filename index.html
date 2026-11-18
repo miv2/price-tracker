@@ -13,7 +13,7 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
 <title>유앤아이의원 가격 추적</title>
-<link rel="stylesheet" href="assets/style.css?v=7aeb774aba">
+<link rel="stylesheet" href="assets/style.css?v=1ba2ec85e3">
 <script>
 (function(){
   try {
@@ -130,6 +130,15 @@
     <span class="result-count" id="count" aria-live="polite"></span>
   </div>
   <nav class="category-strip" id="categoryChips" aria-label="이벤트 카테고리"></nav>
+  <div class="budget-strip" id="budgetChips" role="group" aria-label="예산 가격대 필터">
+    <span class="budget-label" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 2.8 12V4.8A2 2 0 0 1 4.8 2.8H12a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.8Z"></path>
+        <circle cx="7.5" cy="7.5" r="1.5"></circle>
+      </svg>
+      예산
+    </span>
+  </div>
   <div class="toolbar-wrapper" id="toolbarWrapper">
     <div class="toolbar" role="group" aria-labelledby="catalogTitle">
       <form class="search" id="searchForm" role="search">
@@ -256,8 +265,8 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="assets/vendor/chart.umd.min.js?v=7aeb774aba"></script>
+<script src="assets/vendor/chart.umd.min.js?v=1ba2ec85e3"></script>
 <script src="assets/data.js?v=2b95df6790"></script>
-<script src="assets/app.js?v=7aeb774aba"></script>
+<script src="assets/app.js?v=1ba2ec85e3"></script>
 </body>
 </html>

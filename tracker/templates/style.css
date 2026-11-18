@@ -515,6 +515,55 @@ details[open] .recent-head-left h2::after {
 }
 .category-strip button:hover, .category-strip button:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
 .category-strip button[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--panel); font-weight: 700; }
+.budget-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 12px;
+  padding: 2px 0 8px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.budget-strip::-webkit-scrollbar { display: none; }
+.budget-label {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding-right: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.budget-label svg { width: 14px; height: 14px; }
+.budget-strip button {
+  flex: none;
+  scroll-snap-align: start;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease;
+}
+.budget-strip button:hover,
+.budget-strip button:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+.budget-strip button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--panel);
+  font-weight: 700;
+}
 .toolbar-wrapper {
   margin-bottom: 18px;
   border-top: 1px solid var(--line);
