@@ -47,10 +47,11 @@ def _removed_line(change: Change) -> str:
     return f"- 종료: {_label(change)} — 마지막 확인가 {format_won(change.old_price)}"
 
 
-def _summary_line(changes: ChangeSet) -> str:
+def summary_line(changes: ChangeSet) -> str:
+    """변동 건수를 한 줄로 요약한다. 화면 로그와 CHANGES.md가 같은 문구를 쓴다."""
     counts = changes.summary_counts()
     return (
-        f"요약: 가격 인하 {counts['decrease']}건 · 가격 인상 {counts['increase']}건 · "
+        f"가격 인하 {counts['decrease']}건 · 가격 인상 {counts['increase']}건 · "
         f"신규 {counts['new']}건 · 재등장 {counts['returned']}건 · 종료 {counts['removed']}건"
     )
 
@@ -61,7 +62,12 @@ def build_entry(changes: ChangeSet, date: str, bulk_threshold: int = 10) -> str:
     신규·종료가 한꺼번에 많이 감지되면(월 전환 등) 건별로 나열하지 않고
     하나의 묶음 요약으로 보여 준다.
     """
-    lines: list[str] = [f"## {date} ({weekday_ko(date)})", "", _summary_line(changes), ""]
+    lines: list[str] = [
+        f"## {date} ({weekday_ko(date)})",
+        "",
+        f"요약: {summary_line(changes)}",
+        "",
+    ]
 
     if changes.decreases:
         lines.append(f"### 가격 인하 ({len(changes.decreases)}건)")

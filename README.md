@@ -40,6 +40,25 @@
 | `tests/` | 파서·비교·요약·이력·그래프·전체 흐름 테스트와 `test_app.js`(대시보드 JS 로직) |
 | `.github/workflows/track.yml` | 매일·push 시 실행 + 결과 커밋 워크플로 |
 
+### 코드 구조
+
+파이썬 코드는 "바깥 세계와 닿는 부분"과 "판단만 하는 부분"을 함수 경계로 나눕니다.
+DI 컨테이너나 유스케이스 계층 없이, 아래 방향으로만 의존합니다.
+
+| 모듈 | 역할 |
+| --- | --- |
+| `tracker/scrape.py` | 페이지 요청과 HTML 파싱 (네트워크·파서) |
+| `tracker/prices.py`, `tracker/history.py` | 스냅샷·이력 파일 읽기/쓰기 |
+| `tracker/snapshot.py` | 수집 결과 검증과 `first_seen`/`last_seen` 채우기 (I/O 없음) |
+| `tracker/compare.py` | 직전 스냅샷과 비교해 인하·인상·신규·재등장·종료 판정 |
+| `tracker/changes.py` | 이력에서 변동 이벤트와 최근·월별 요약 계산 (I/O 없음) |
+| `tracker/report.py` | `CHANGES.md` 요약 생성 |
+| `tracker/graph.py` | 페이지 페이로드·HTML·정적 자산·서비스 워커 생성 |
+| `tracker/main.py` | CLI 인자 해석과 실행 순서 조립 |
+
+`compare.py`·`changes.py`·`snapshot.py`는 파일이나 네트워크를 건드리지 않으므로
+테스트에서 입력만 만들어 바로 검증할 수 있습니다.
+
 ## 로컬에서 실행하기
 
 Python 3.11 이상이 필요합니다.

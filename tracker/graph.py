@@ -10,11 +10,15 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections import defaultdict
 from pathlib import Path
-from typing import Any
 
-from .compare import detect_changes
+from .changes import (
+    Payload,
+    build_history_changes,
+    build_monthly_summary,
+    build_recent_changes,
+    snapshot_dates,
+)
 from .history import group_by_item
 from .models import Item, PriceRow
 from .util import atomic_write_text
@@ -38,128 +42,9 @@ PWA_STATIC_FILES = (
     "icons/apple-touch-icon.png",
 )
 
-Payload = dict[str, Any]
 
-KIND_ORDER = {"decrease": 0, "increase": 1, "returned": 2, "new": 3, "removed": 4}
-
-
-def build_history_changes(rows: list[PriceRow], items: list[Payload]) -> list[Payload]:
-    """수집일 사이 변동을 계산한다. 수집하지 않은 날은 종료로 해석하지 않는다."""
-    snapshots: dict[str, dict[tuple[str, str], Item]] = defaultdict(dict)
-    for row in rows:
-        item = Item(row["category"], row["name"], None, row["sale_price"])
-        snapshots[row["date"]][item.key] = item
-    index = {(entry["category"], entry["name"]): i for i, entry in enumerate(items)}
-    previous: dict[tuple[str, str], Item] | None = None
-    last_known: dict[tuple[str, str], int] = {}
-    prev_date: str | None = None
-    events: list[Payload] = []
-    for date, snapshot in sorted(snapshots.items()):
-        changes = detect_changes(previous.values() if previous is not None else None, snapshot.values(), last_known)
-        for change in changes.decreases + changes.increases + changes.returned + changes.new + changes.removed:
-            events.append({
-                "index": index.get(change.key, -1),
-                "date": date,
-                "prev_date": prev_date,
-                "category": change.category,
-                "name": change.name,
-                "kind": change.kind,
-                "prev": change.old_price,
-                "price": change.new_price,
-                "delta": change.delta,
-            })
-        last_known.update({key: item.sale_price for key, item in snapshot.items()})
-        previous = snapshot
-        prev_date = date
-    return events
-
-
-def change_counts(events: list[Payload]) -> dict[str, int]:
-    counts = dict.fromkeys(KIND_ORDER, 0)
-    for event in events:
-        counts[event["kind"]] += 1
-    return counts
-
-
-def build_recent_changes(
-    rows: list[PriceRow], items: list[Payload], events: list[Payload] | None = None,
-) -> Payload:
-    """최근 두 수집일의 변동. 재등장은 종료 전 마지막 가격과 비교한다."""
-    dates = sorted({row["date"] for row in rows})
-    if events is None:
-        events = build_history_changes(rows, items)
-    changes = [event for event in events if dates and event["date"] == dates[-1]]
-    changes.sort(
-        key=lambda change: (
-            KIND_ORDER[change["kind"]],
-            -(abs(change["delta"]) if change["delta"] is not None else 0),
-            change["category"], change["name"],
-        )
-    )
-    return {
-        "baseline": len(dates) < 2,
-        "date": dates[-1] if dates else None,
-        "prev_date": dates[-2] if len(dates) > 1 else None,
-        "counts": change_counts(changes),
-        "total": len(changes),
-        "items": changes,
-    }
-
-
-def build_monthly_summary(rows: list[PriceRow], events: list[Payload]) -> list[Payload]:
-    """월별 변동 횟수와 시술별 가장 큰 단일 인하 상위 5개를 만든다."""
-    dates = sorted({row["date"] for row in rows})
-    months: dict[str, list[str]] = defaultdict(list)
-    monthly_events: dict[str, list[Payload]] = defaultdict(list)
-    for date in dates:
-        months[date[:7]].append(date)
-    for event in events:
-        monthly_events[event["date"][:7]].append(event)
-    summaries: list[Payload] = []
-    for month, month_dates in sorted(months.items(), reverse=True):
-        changes = monthly_events[month]
-        biggest: dict[int, Payload] = {}
-        for event in changes:
-            if event["kind"] != "decrease":
-                continue
-            old = biggest.get(event["index"])
-            if old is None or event["delta"] < old["delta"] or (
-                event["delta"] == old["delta"] and event["date"] > old["date"]
-            ):
-                biggest[event["index"]] = event
-        top = sorted(biggest.values(), key=lambda event: (event["delta"], event["category"], event["name"]))[:5]
-        # 배지를 눌렀을 때 그 달의 해당 항목을 모두 보여줄 수 있도록 전체 변동을 담는다.
-        # 같은 종류끼리 묶고, 그 안에서는 최근 날짜 → 변동 폭 큰 순으로 정렬한다.
-        ordered = sorted(
-            changes,
-            key=lambda event: -(abs(event["delta"]) if event["delta"] is not None else 0),
-        )
-        ordered.sort(key=lambda event: event["date"], reverse=True)
-        ordered.sort(key=lambda event: KIND_ORDER[event["kind"]])
-        summaries.append({
-            "month": month,
-            "first_date": month_dates[0],
-            "last_date": month_dates[-1],
-            "days": len(month_dates),
-            "includes_baseline": month_dates[0] == dates[0],
-            "counts": change_counts(changes),
-            "total": len(changes),
-            "top_decreases": top,
-            "events": ordered,
-        })
-    return summaries
-
-
-def build_payload(
-    rows: list[PriceRow],
-    active_items: list[Item],
-    source_url: str,
-    repo_url: str = "",
-) -> Payload:
-    """그래프 페이지가 쓰는 JSON 데이터를 만든다.
-
-    종료된 항목도 지난 이력을 볼 수 있도록 남기고 ``active``로 구분한다.
-    """
+def build_item_entries(rows: list[PriceRow], active_items: list[Item]) -> list[Payload]:
+    """시술별 가격 통계(최저·최고·평균·할인율)를 담은 목록을 만든다."""
     grouped = group_by_item(rows)
     active = {item.key: item for item in active_items}
 
@@ -191,7 +76,21 @@ def build_payload(
         items.append(entry)
 
     items.sort(key=lambda entry: (entry["category"], entry["name"]))
-    dates = sorted({row["date"] for row in rows})
+    return items
+
+
+def build_payload(
+    rows: list[PriceRow],
+    active_items: list[Item],
+    source_url: str,
+    repo_url: str = "",
+) -> Payload:
+    """그래프 페이지가 쓰는 JSON 데이터를 만든다.
+
+    종료된 항목도 지난 이력을 볼 수 있도록 남기고 ``active``로 구분한다.
+    """
+    items = build_item_entries(rows, active_items)
+    dates = snapshot_dates(rows)
     events = build_history_changes(rows, items)
     for event in events:
         if event["kind"] == "returned":
@@ -204,7 +103,7 @@ def build_payload(
         "first_date": dates[0] if dates else None,
         "last_date": dates[-1] if dates else None,
         "active_count": sum(1 for entry in items if entry["active"]),
-        "recent": build_recent_changes(rows, items, events),
+        "recent": build_recent_changes(rows, events),
         "monthly": build_monthly_summary(rows, events),
         "items": items,
     }
@@ -303,6 +202,20 @@ def render_html(
     return html
 
 
+def write_data(target_dir: Path, payload: Payload) -> str:
+    """대용량 페이로드를 assets/data.js로 분리 저장하고 내용 해시를 돌려준다.
+
+    HTML에는 데이터가 들어가지 않으므로 골격을 캐시할 수 있고, 데이터가
+    바뀔 때만 data.js의 쿼리 문자열이 달라진다.
+    """
+    data_js = f"window.__PRICE_DATA__={serialize_payload(payload)};"
+    data_version = hashlib.sha256(data_js.encode("utf-8")).hexdigest()[:10]
+    target = target_dir / DATA_JS_NAME
+    if not target.exists() or target.read_text(encoding="utf-8") != data_js:
+        atomic_write_text(target, data_js)
+    return data_version
+
+
 def write_graph(
     path: Path,
     rows: list[PriceRow],
@@ -315,22 +228,12 @@ def write_graph(
     assets = load_assets(template_path.parent)
     assets_dir = path.parent / ASSET_DIR_NAME
 
-    # 1. CSS 및 정적 JS 자산 저장
     write_assets(assets_dir, assets)
+    data_version = write_data(assets_dir, payload)
 
-    # 2. 대용량 가격 페이로드를 assets/data.js로 분리하여 HTML 용량 절감 및 캐싱 활성화
-    payload_json = serialize_payload(payload)
-    data_js = f"window.__PRICE_DATA__={payload_json};"
-    data_version = hashlib.sha256(data_js.encode("utf-8")).hexdigest()[:10]
-    data_target = assets_dir / DATA_JS_NAME
-    if not data_target.exists() or data_target.read_text(encoding="utf-8") != data_js:
-        atomic_write_text(data_target, data_js)
-
-    # 3. 경량 HTML 스켈레톤 생성
     version = asset_version(assets)
-    html = render_html(payload, template_path, version, data_version)
-    atomic_write_text(path, html)
-
-    # 4. 오프라인 열람용 서비스 워커 생성
-    sw = render_service_worker(template_path.parent, version, data_version)
-    atomic_write_text(path.parent / SW_NAME, sw)
+    atomic_write_text(path, render_html(payload, template_path, version, data_version))
+    atomic_write_text(
+        path.parent / SW_NAME,
+        render_service_worker(template_path.parent, version, data_version),
+    )
