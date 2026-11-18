@@ -36,6 +36,7 @@ const DATA = (function () {
   const FAVORITES_KEY = "priceTracker.favorites.v1";
   const ESTIMATE_KEY = "priceTracker.estimate.v1";
   const VAT_KEY = "priceTracker.vat.v1";
+  const THEME_KEY = "priceTracker.theme.v1";
   const VAT_RATE = 0.1;
   const MAX_QUANTITY = 99;
   const CHOSUNG = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
@@ -105,6 +106,87 @@ const DATA = (function () {
     } catch (error) {
       // 저장 공간이 없으면 이번 방문 동안만 유지한다.
     }
+  }
+
+  function loadTheme(storage) {
+    if (!storage || typeof storage.getItem !== "function") return null;
+    try {
+      const val = storage.getItem(THEME_KEY);
+      return val === "dark" || val === "light" ? val : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function saveTheme(storage, theme) {
+    if (!storage || typeof storage.setItem !== "function") return;
+    try {
+      if (theme === "dark" || theme === "light") {
+        storage.setItem(THEME_KEY, theme);
+      } else if (typeof storage.removeItem === "function") {
+        storage.removeItem(THEME_KEY);
+      }
+    } catch (error) {
+      // 저장 공간이 없으면 무시한다.
+    }
+  }
+
+  function getSystemTheme() {
+    if (typeof window === "undefined" || !window.matchMedia) return "light";
+    try {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    } catch (error) {
+      return "light";
+    }
+  }
+
+  function getEffectiveTheme(storage) {
+    return loadTheme(storage) || getSystemTheme();
+  }
+
+  function applyTheme(theme, persist, storage) {
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute("data-theme", theme);
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute("content", theme === "dark" ? "#141316" : "#ffffff");
+      const btn = $("themeToggle");
+      if (btn) {
+        const nextMode = theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환";
+        btn.setAttribute("aria-label", nextMode);
+        btn.title = nextMode;
+      }
+      if ($("chartDialog") && $("chartDialog").open && openItemKey) {
+        const target = findItemByKey(openItemKey);
+        if (target) drawChart(target);
+      }
+    }
+    if (persist) {
+      saveTheme(storage || storageOrNull(), theme);
+    }
+  }
+
+  function toggleTheme() {
+    const current = getEffectiveTheme(storageOrNull());
+    const next = current === "dark" ? "light" : "dark";
+    applyTheme(next, true, storageOrNull());
+    toast(next === "dark" ? "다크 모드로 전환되었습니다." : "라이트 모드로 전환되었습니다.");
+  }
+
+  function initTheme() {
+    const btn = $("themeToggle");
+    if (btn) btn.addEventListener("click", toggleTheme);
+    if (typeof window !== "undefined" && window.matchMedia) {
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      const handler = function (e) {
+        if (!loadTheme(storageOrNull())) {
+          applyTheme(e.matches ? "dark" : "light", false);
+        }
+      };
+      if (mq.addEventListener) mq.addEventListener("change", handler);
+      else if (mq.addListener) mq.addListener(handler);
+    }
+    const current = getEffectiveTheme(storageOrNull());
+    applyTheme(current, false);
   }
 
   function vatPrice(price) {
@@ -1855,6 +1937,12 @@ const DATA = (function () {
         saveFavorites,
         loadVatIncluded,
         saveVatIncluded,
+        THEME_KEY,
+        loadTheme,
+        saveTheme,
+        getSystemTheme,
+        getEffectiveTheme,
+        applyTheme,
         vatPrice,
         displayPrice,
         displayWon,
@@ -2106,6 +2194,7 @@ const DATA = (function () {
   if (navigator.onLine === false) toast("오프라인 · 저장된 가격을 보여줍니다.");
 
   readUrlState();
+  initTheme();
   initSummaryHub();
   initFilterDrawer();
   renderVatState();

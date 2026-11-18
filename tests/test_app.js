@@ -81,6 +81,35 @@ test("loadVatIncluded()/saveVatIncluded() - VAT 표시 설정을 저장하고 �
   assert.doesNotThrow(() => app.saveVatIncluded(null, true));
 });
 
+test("loadTheme()/saveTheme()/getEffectiveTheme() - 다크/라이트 테마 설정을 저장하고 복원한다", () => {
+  const store = new Map();
+  const storage = {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => { store.set(key, value); },
+    removeItem: (key) => { store.delete(key); }
+  };
+
+  assert.equal(app.loadTheme(storage), null);
+  assert.equal(app.getEffectiveTheme(storage), "light"); // Node 환경은 기본 light
+
+  app.saveTheme(storage, "dark");
+  assert.equal(storage.getItem("priceTracker.theme.v1"), "dark");
+  assert.equal(app.loadTheme(storage), "dark");
+  assert.equal(app.getEffectiveTheme(storage), "dark");
+
+  app.saveTheme(storage, "light");
+  assert.equal(storage.getItem("priceTracker.theme.v1"), "light");
+  assert.equal(app.loadTheme(storage), "light");
+  assert.equal(app.getEffectiveTheme(storage), "light");
+
+  // 잘못된 값은 저장소에서 제거되어 null 처리
+  app.saveTheme(storage, "invalid");
+  assert.equal(app.loadTheme(storage), null);
+
+  assert.equal(app.loadTheme(null), null);
+  assert.doesNotThrow(() => app.saveTheme(null, "dark"));
+});
+
 test("calculateEstimate() - 상품 수량과 VAT 전환을 정확히 합산한다", () => {
   const catalog = [
     item("토닝 5회 패키지", [["2026-11-16", 10000], ["2026-11-17", 9500]], { active: true }),

@@ -13,13 +13,32 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
 <title>유앤아이의원 가격 추적</title>
-<link rel="stylesheet" href="assets/style.css?v=e9f48b5207">
+<link rel="stylesheet" href="assets/style.css?v=d5f918fe26">
+<script>
+(function(){
+  try {
+    var t = localStorage.getItem("priceTracker.theme.v1");
+    var dark = t ? t === "dark" : (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    if (dark) {
+      document.documentElement.setAttribute("data-theme", "dark");
+      var m = document.querySelector('meta[name="theme-color"]');
+      if (m) m.setAttribute("content", "#141316");
+    }
+  } catch (e) {}
+})();
+</script>
 </head>
 <body>
 <div class="site-strip">YOU<span>&amp;</span>I <strong>수원</strong> · 이벤트 가격 추적</div>
 <header class="hero">
   <div class="wrap">
-    <div class="hero-top"><span class="brand">YOU<span class="amp">&amp;</span>I <small>유앤아이의원 수원점</small></div>
+    <div class="hero-top">
+      <span class="brand">YOU<span class="amp">&amp;</span>I <small>유앤아이의원 수원점</small></span>
+      <button type="button" class="theme-toggle-btn" id="themeToggle" aria-label="다크 모드로 전환" title="테마 변경">
+        <span class="theme-icon-sun" aria-hidden="true">☀️</span>
+        <span class="theme-icon-moon" aria-hidden="true">🌙</span>
+      </button>
+    </div>
     <div class="stats">
       <div class="stat"><strong id="statActive">–</strong><span>판매 중 시술</span></div>
       <div class="stat"><strong id="statDays">–</strong><span>기록 일수</span></div>
@@ -233,8 +252,8 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="assets/vendor/chart.umd.min.js?v=e9f48b5207"></script>
+<script src="assets/vendor/chart.umd.min.js?v=d5f918fe26"></script>
 <script src="assets/data.js?v=2b95df6790"></script>
-<script src="assets/app.js?v=e9f48b5207"></script>
+<script src="assets/app.js?v=d5f918fe26"></script>
 </body>
 </html>
