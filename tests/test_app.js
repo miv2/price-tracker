@@ -36,6 +36,7 @@ function item(name, points, extra) {
 
 beforeEach(function () {
   resetState();
+  app.state.vatIncluded = false;
   setData(null, 0);
   app.changedIndexes.clear();
   app.favorites.clear();
@@ -45,6 +46,39 @@ test("returnedPriceText() - 재등장 전후 가격과 동일·인하·인상을
   assert.equal(app.returnedPriceText({ prev: 10000, price: 10000, delta: 0 }), "10,000원 → 10,000원 (종료 전과 동일)");
   assert.equal(app.returnedPriceText({ prev: 10000, price: 8000, delta: -2000 }), "10,000원 → 8,000원 (종료 전 대비 −2,000원)");
   assert.equal(app.returnedPriceText({ prev: 10000, price: 12000, delta: 2000 }), "10,000원 → 12,000원 (종료 전 대비 +2,000원)");
+});
+
+test("vatPrice()/displayWon() - VAT 포함 모드에서 10%를 원 단위로 반올림한다", () => {
+  assert.equal(app.vatPrice(29000), 31900);
+  assert.equal(app.vatPrice(10005), 11006); // 11,005.5원 반올림
+  assert.equal(app.vatPrice(null), null);
+  app.state.vatIncluded = false;
+  assert.equal(app.displayPrice(29000), 29000);
+  assert.equal(app.displayWon(29000), "29,000원");
+  app.state.vatIncluded = true;
+  assert.equal(app.displayPrice(29000), 31900);
+  assert.equal(app.displayWon(29000), "31,900원");
+  assert.equal(app.displayWon(null), "—");
+  // 변동 금액도 표시 가격끼리의 차이로 계산해 화면 숫자와 맞춘다.
+  assert.equal(
+    app.returnedPriceText({ prev: 10000, price: 9000, delta: -1000 }),
+    "11,000원 → 9,900원 (종료 전 대비 −1,100원)"
+  );
+});
+
+test("loadVatIncluded()/saveVatIncluded() - VAT 표시 설정을 저장하고 복원한다", () => {
+  const store = new Map();
+  const storage = {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => { store.set(key, value); }
+  };
+  app.saveVatIncluded(storage, true);
+  assert.equal(storage.getItem("priceTracker.vat.v1"), "1");
+  assert.equal(app.loadVatIncluded(storage), true);
+  app.saveVatIncluded(storage, false);
+  assert.equal(app.loadVatIncluded(storage), false);
+  assert.equal(app.loadVatIncluded(null), false);
+  assert.doesNotThrow(() => app.saveVatIncluded(null, true));
 });
 
 test("calculateEstimate() - 상품 수량과 VAT 전환을 정확히 합산한다", () => {

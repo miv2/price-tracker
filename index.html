@@ -13,7 +13,7 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
 <title>유앤아이의원 가격 추적</title>
-<link rel="stylesheet" href="assets/style.css?v=7a1ce40135">
+<link rel="stylesheet" href="assets/style.css?v=cc0efc7534">
 </head>
 <body>
 <div class="site-strip">YOU<span>&amp;</span>I <strong>수원</strong> · 이벤트 가격 추적</div>
@@ -118,6 +118,7 @@
     </select>
     <button type="button" class="toggle" id="expandAllToggle" aria-pressed="false">전체 펼치기</button>
     <button type="button" class="toggle" id="viewToggle" aria-pressed="false">표로 보기</button>
+    <button type="button" class="toggle" id="vatToggle" aria-pressed="false" title="부가세 10%를 더한 결제 예상가로 표시합니다">VAT 포함</button>
   </div>
 
   <div class="event-grid" id="eventGrid" aria-label="시술별 이벤트 가격"></div>
@@ -150,7 +151,7 @@
 
 <footer>
   <div class="wrap">
-    <p>데이터: <a id="sourceLink" href="https://www.swuni114.co.kr/" target="_blank" rel="noopener">유앤아이의원 수원점 이벤트 페이지</a> · 가격은 할인가 기준이며 VAT 별도입니다.</p>
+    <p>데이터: <a id="sourceLink" href="https://www.swuni114.co.kr/" target="_blank" rel="noopener">유앤아이의원 수원점 이벤트 페이지</a> · 가격은 할인가 기준이며 <span id="priceBasis">VAT 별도</span>입니다.</p>
     <p>변동 내역: <a id="changesLink" href="CHANGES.md">CHANGES.md</a> · 원본 데이터: <a id="historyLink" href="history.csv">history.csv</a>, <a id="pricesLink" href="prices.json">prices.json</a></p>
     <p>GitHub Actions가 하루 1회 자동으로 갱신합니다. <button type="button" class="link-btn install-btn" id="installBtn" hidden>앱으로 설치</button></p>
   </div>
@@ -193,8 +194,8 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="assets/vendor/chart.umd.min.js?v=7a1ce40135"></script>
+<script src="assets/vendor/chart.umd.min.js?v=cc0efc7534"></script>
 <script src="assets/data.js?v=2b95df6790"></script>
-<script src="assets/app.js?v=7a1ce40135"></script>
+<script src="assets/app.js?v=cc0efc7534"></script>
 </body>
 </html>

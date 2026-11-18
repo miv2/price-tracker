@@ -35,6 +35,8 @@ const DATA = (function () {
   const PAGE_SIZE = 40;
   const FAVORITES_KEY = "priceTracker.favorites.v1";
   const ESTIMATE_KEY = "priceTracker.estimate.v1";
+  const VAT_KEY = "priceTracker.vat.v1";
+  const VAT_RATE = 0.1;
   const MAX_QUANTITY = 99;
   const CHOSUNG = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
   const CHANGE_LABELS = { decrease: "인하", increase: "인상", new: "신규", returned: "재등장", removed: "종료" };
@@ -45,7 +47,7 @@ const DATA = (function () {
     returned: "이달에 재등장한 항목이 없습니다.",
     removed: "이달에 종료된 항목이 없습니다."
   };
-  const state = { q: "", category: "", status: "active", changedOnly: false, favoritesOnly: false, sort: "category", view: "cards", pageSize: PAGE_SIZE };
+  const state = { q: "", category: "", status: "active", changedOnly: false, favoritesOnly: false, sort: "category", view: "cards", pageSize: PAGE_SIZE, vatIncluded: loadVatIncluded(storageOrNull()) };
   let displayLimit = PAGE_SIZE;
   let monthlyKind = "";
   let openItemKey = "";
@@ -85,6 +87,38 @@ const DATA = (function () {
     } catch (error) {
       return null;
     }
+  }
+
+  function loadVatIncluded(storage) {
+    if (!storage || typeof storage.getItem !== "function") return false;
+    try {
+      return storage.getItem(VAT_KEY) === "1";
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function saveVatIncluded(storage, included) {
+    if (!storage || typeof storage.setItem !== "function") return;
+    try {
+      storage.setItem(VAT_KEY, included ? "1" : "0");
+    } catch (error) {
+      // 저장 공간이 없으면 이번 방문 동안만 유지한다.
+    }
+  }
+
+  function vatPrice(price) {
+    if (price === null || price === undefined) return price;
+    return Math.round(Number(price) * (1 + VAT_RATE));
+  }
+
+  // 목록·표·차트에 보여 줄 금액. 계산기의 VAT 설정과는 별개다.
+  function displayPrice(price) {
+    return state.vatIncluded ? vatPrice(price) : price;
+  }
+
+  function displayWon(price) {
+    return won(displayPrice(price));
   }
 
   function loadFavorites(storage) {
@@ -508,7 +542,7 @@ const DATA = (function () {
     svg.appendChild(el("circle", { cx: last[0], cy: last[1], r: "4.5", fill: "currentColor", opacity: "0.2" }));
     svg.appendChild(el("circle", { cx: last[0], cy: last[1], r: "2.4", fill: "currentColor" }));
     const title = el("title");
-    title.textContent = points.length + "일 기록 · " + won(points[points.length - 1][1]);
+    title.textContent = points.length + "일 기록 · " + displayWon(points[points.length - 1][1]);
     svg.appendChild(title);
     return svg;
   }
@@ -516,10 +550,12 @@ const DATA = (function () {
   function deltaText(item) {
     const change = latestChange(item);
     if (change === null) return "—";
-    const pct = change.prev ? (change.delta / change.prev) * 100 : null;
-    const sign = change.delta > 0 ? "+" : "-";
-    const abs = fmt(Math.abs(change.delta));
-    return (change.delta > 0 ? "▲ " : "▼ ") + abs + "원" + (pct === null ? "" : " (" + sign + Math.abs(pct).toFixed(1) + "%)");
+    const prev = displayPrice(change.prev);
+    const delta = displayPrice(change.price) - prev;
+    const pct = change.prev ? (delta / prev) * 100 : null;
+    const sign = delta > 0 ? "+" : "-";
+    const abs = fmt(Math.abs(delta));
+    return (delta > 0 ? "▲ " : "▼ ") + abs + "원" + (pct === null ? "" : " (" + sign + Math.abs(pct).toFixed(1) + "%)");
   }
 
   function renderStats() {
@@ -615,9 +651,14 @@ const DATA = (function () {
   }
 
   function returnedPriceText(change) {
-    const diff = change.delta === 0 ? "종료 전과 동일" : "종료 전 대비 " +
-      (change.delta > 0 ? "+" : "−") + won(Math.abs(change.delta));
-    return won(change.prev) + " → " + won(change.price) + " (" + diff + ")";
+    const prev = displayPrice(change.prev);
+    const price = displayPrice(change.price);
+    const delta = prev === null || prev === undefined || price === null || price === undefined
+      ? change.delta
+      : price - prev;
+    const diff = delta === 0 ? "종료 전과 동일" : "종료 전 대비 " +
+      (delta > 0 ? "+" : "−") + won(Math.abs(delta));
+    return won(prev) + " → " + won(price) + " (" + diff + ")";
   }
 
   function renderChangeList(list, changes, emptyText, showDate) {
@@ -659,14 +700,17 @@ const DATA = (function () {
       if (change.kind === "returned") {
         value.textContent = returnedPriceText(change);
       } else if (change.kind === "new") {
-        value.textContent = won(change.price);
+        value.textContent = displayWon(change.price);
       } else if (change.kind === "removed") {
-        value.textContent = won(change.prev);
+        value.textContent = displayWon(change.prev);
       } else {
-        const sign = change.delta > 0 ? "+" : "-";
+        const prev = displayPrice(change.prev);
+        const price = displayPrice(change.price);
+        const delta = change.delta === null || change.delta === undefined ? change.delta : price - prev;
+        const sign = delta > 0 ? "+" : "-";
         value.textContent = showDate
-          ? won(change.prev) + " → " + won(change.price) + " (" + sign + won(Math.abs(change.delta)) + ")"
-          : sign + fmt(Math.abs(change.delta)) + "원";
+          ? won(prev) + " → " + won(price) + " (" + sign + won(Math.abs(delta)) + ")"
+          : sign + fmt(Math.abs(delta)) + "원";
       }
       btn.appendChild(value);
 
@@ -859,7 +903,7 @@ const DATA = (function () {
       nameCell.appendChild(badge);
     }
 
-    const priceCell = td(won(currentPrice(item)), "num price");
+    const priceCell = td(displayWon(currentPrice(item)), "num price");
     if (!item.active) priceCell.title = "마지막으로 확인된 가격";
 
     const cur = currentPrice(item);
@@ -907,7 +951,7 @@ const DATA = (function () {
       deltaCell.appendChild(when);
     }
 
-    const rangeCell = td(fmt(min) + " / " + fmt(max), "num small");
+    const rangeCell = td(fmt(displayPrice(min)) + " / " + fmt(displayPrice(max)), "num small");
 
     const sparkCell = document.createElement("td");
     sparkCell.className = "spark";
@@ -974,10 +1018,10 @@ const DATA = (function () {
       prices.className = "event-prices";
       const listPrice = document.createElement("span");
       listPrice.className = "event-list-price";
-      listPrice.textContent = item.list_price > currentPrice(item) ? won(item.list_price) : "";
+      listPrice.textContent = item.list_price > currentPrice(item) ? displayWon(item.list_price) : "";
       const salePrice = document.createElement("span");
       salePrice.className = "event-sale-price";
-      salePrice.textContent = won(currentPrice(item));
+      salePrice.textContent = displayWon(currentPrice(item));
       prices.append(listPrice, salePrice);
       const name = document.createElement("span");
       name.className = "event-name";
@@ -1172,20 +1216,21 @@ const DATA = (function () {
       chip.append(lbl, bold);
       meta.appendChild(chip);
     }
-    part("현재", won(last[1]));
+    part("현재", displayWon(last[1]));
+    part("금액 기준", state.vatIncluded ? "VAT 포함" : "VAT 별도");
     if (item.returned) {
       part("최근 재등장", item.returned.date);
       part("재등장 가격 비교", returnedPriceText(item.returned));
     }
-    if (item.list_price !== undefined && item.list_price !== null) part("정가", won(item.list_price));
+    if (item.list_price !== undefined && item.list_price !== null) part("정가", displayWon(item.list_price));
     const rate = item.discount_rate !== undefined ? item.discount_rate : discountRate(item);
     if (rate !== null && rate > 0) part("할인율", rate + "%", "good");
 
     if (item.all_time_low !== undefined) {
-      part("역대 최저", won(item.all_time_low), last[1] <= item.all_time_low && item.points.length >= 2 ? "good" : "");
+      part("역대 최저", displayWon(item.all_time_low), last[1] <= item.all_time_low && item.points.length >= 2 ? "good" : "");
     }
     if (item.avg_price !== undefined && item.points.length > 1) {
-      part("역대 평균", won(item.avg_price));
+      part("역대 평균", displayWon(item.avg_price));
       const vsAvg = item.price_vs_avg;
       if (vsAvg !== undefined && vsAvg !== 0) {
         part("평균 대비", (vsAvg > 0 ? "+" : "") + vsAvg + "%", vsAvg < 0 ? "good" : "bad");
@@ -1194,10 +1239,10 @@ const DATA = (function () {
 
     if ((DATA.days || 0) >= 2) {
       const low = min30(item);
-      if (low !== null) part("30일 최저", won(low), currentPrice(item) <= low ? "good" : "");
+      if (low !== null) part("30일 최저", displayWon(low), currentPrice(item) <= low ? "good" : "");
     }
     if (item.points.length > 1) {
-      const diff = last[1] - first[1];
+      const diff = displayPrice(last[1]) - displayPrice(first[1]);
       if (diff !== 0) part("첫 기록 대비", (diff > 0 ? "+" : "-") + fmt(Math.abs(diff)) + "원", diff > 0 ? "bad" : "good");
     }
     part("기간", mmdd(first[0]) + " ~ " + mmdd(last[0]) + " (" + item.points.length + "일 기록)");
@@ -1209,11 +1254,11 @@ const DATA = (function () {
       const point = item.points[i];
       const tr = document.createElement("tr");
       tr.appendChild(td(point[0]));
-      tr.appendChild(td(won(point[1]), "num"));
+      tr.appendChild(td(displayWon(point[1]), "num"));
       if (i === 0) {
         tr.appendChild(td("—", "num flat"));
       } else {
-        const diff = point[1] - item.points[i - 1][1];
+        const diff = displayPrice(point[1]) - displayPrice(item.points[i - 1][1]);
         tr.appendChild(td(
           diff === 0 ? "—" : (diff > 0 ? "+" : "-") + fmt(Math.abs(diff)) + "원",
           "num " + (diff === 0 ? "flat" : diff > 0 ? "bad" : "good")
@@ -1390,15 +1435,18 @@ const DATA = (function () {
     const points = item.points;
     const labels = points.map(function (p) { return p[0]; });
     const values = points.map(function (p) { return p[1]; });
+    const shown = values.map(displayPrice);
     const first = points[0];
     const last = points[points.length - 1];
     const rawMin = Math.min.apply(null, values);
     const rawMax = Math.max.apply(null, values);
-    const flat = rawMin === rawMax;
+    const shownMin = Math.min.apply(null, shown);
+    const shownMax = Math.max.apply(null, shown);
+    const flat = shownMin === shownMax;
 
     canvas.setAttribute("aria-label",
-      item.name + " 가격 추이: " + first[0] + " " + won(first[1]) + "에서 " +
-      last[0] + " " + won(last[1]) + ", 최저 " + won(rawMin) + ", 최고 " + won(rawMax));
+      item.name + " 가격 추이: " + first[0] + " " + displayWon(first[1]) + "에서 " +
+      last[0] + " " + displayWon(last[1]) + ", 최저 " + displayWon(rawMin) + ", 최고 " + displayWon(rawMax));
 
     if (chartInstance) {
       chartInstance.destroy();
@@ -1421,16 +1469,16 @@ const DATA = (function () {
       up: cssVar("--up") || COLORS.up
     };
 
-    let min = rawMin;
-    let max = rawMax;
+    let min = shownMin;
+    let max = shownMax;
     if (flat) {
-      const margin = Math.max(1000, Math.round(rawMax * 0.06));
-      min = Math.max(0, rawMin - margin);
-      max = rawMax + margin;
+      const margin = Math.max(1000, Math.round(shownMax * 0.06));
+      min = Math.max(0, shownMin - margin);
+      max = shownMax + margin;
     } else {
-      const margin = (rawMax - rawMin) * 0.16;
-      min = Math.max(0, rawMin - margin);
-      max = rawMax + margin;
+      const margin = (shownMax - shownMin) * 0.16;
+      min = Math.max(0, shownMin - margin);
+      max = shownMax + margin;
     }
     const step = niceStep(max - min || 1, compact ? 4 : 5);
     min = Math.max(0, Math.floor(min / step) * step);
@@ -1439,7 +1487,7 @@ const DATA = (function () {
 
     const datasets = [{
       label: item.name,
-      data: values,
+      data: shown,
       order: 1,
       borderColor: color,
       borderWidth: 2.6,
@@ -1454,20 +1502,20 @@ const DATA = (function () {
         gradient.addColorStop(1, withAlpha(color, 0));
         return gradient;
       },
-      pointBackgroundColor: values.map(function (_, i) {
-        return i === values.length - 1 ? color : palette.panel;
+      pointBackgroundColor: shown.map(function (_, i) {
+        return i === shown.length - 1 ? color : palette.panel;
       }),
-      pointBorderColor: values.map(function (price, i) {
+      pointBorderColor: shown.map(function (price, i) {
         if (i === 0) return flatColor;
-        if (price > values[i - 1]) return palette.up;
-        if (price < values[i - 1]) return palette.down;
+        if (price > shown[i - 1]) return palette.up;
+        if (price < shown[i - 1]) return palette.down;
         return flatColor;
       }),
-      pointBorderWidth: values.map(function (_, i) {
-        return i === values.length - 1 ? 2.4 : 1.8;
+      pointBorderWidth: shown.map(function (_, i) {
+        return i === shown.length - 1 ? 2.4 : 1.8;
       }),
-      pointRadius: values.map(function (_, i) {
-        return i === values.length - 1 ? 5.5 : 3.6;
+      pointRadius: shown.map(function (_, i) {
+        return i === shown.length - 1 ? 5.5 : 3.6;
       }),
       pointHoverRadius: 7,
       pointHoverBorderWidth: 2.6,
@@ -1478,7 +1526,7 @@ const DATA = (function () {
       if (item.all_time_low !== undefined) {
         datasets.push({
           label: "역대 최저",
-          data: values.map(function () { return item.all_time_low; }),
+          data: shown.map(function () { return displayPrice(item.all_time_low); }),
           order: 0,
           borderColor: palette.down,
           borderWidth: 1.2,
@@ -1493,7 +1541,7 @@ const DATA = (function () {
       if (item.avg_price !== undefined && points.length > 1) {
         datasets.push({
           label: "평균",
-          data: values.map(function () { return item.avg_price; }),
+          data: shown.map(function () { return displayPrice(item.avg_price); }),
           order: 0,
           borderColor: palette.muted,
           borderWidth: 1.1,
@@ -1501,7 +1549,7 @@ const DATA = (function () {
           pointRadius: 0,
           pointHitRadius: 0,
           fill: false,
-          refLabel: "평균 " + won(item.avg_price),
+          refLabel: "평균 " + displayWon(item.avg_price),
           refColor: palette.muted
         });
       }
@@ -1567,7 +1615,7 @@ const DATA = (function () {
               afterLabel: function (entry) {
                 const index = entry.dataIndex;
                 if (index === 0) return "첫 기록";
-                const prev = values[index - 1];
+                const prev = shown[index - 1];
                 const diff = entry.parsed.y - prev;
                 if (diff === 0) return "변동 없음";
                 const pct = prev ? (Math.abs(diff) / prev) * 100 : 0;
@@ -1576,7 +1624,7 @@ const DATA = (function () {
               }
             }
           },
-          lastValuePill: { text: won(last[1]), color: color },
+          lastValuePill: { text: won(shown[shown.length - 1]), color: color },
           flatNotice: { text: flat ? "수집 이래 가격 변동 없음 · " + points.length + "일 기록" : "" }
         }
       },
@@ -1665,6 +1713,19 @@ const DATA = (function () {
     star.title = label;
   }
 
+  function renderVatState() {
+    const toggle = $("vatToggle");
+    if (toggle) {
+      toggle.classList.toggle("on", state.vatIncluded);
+      toggle.setAttribute("aria-pressed", String(state.vatIncluded));
+      toggle.title = state.vatIncluded
+        ? "부가세 포함 결제 예상가로 표시 중입니다. 눌러서 VAT 별도로 전환합니다"
+        : "부가세 10%를 더한 결제 예상가로 표시합니다";
+    }
+    const basis = $("priceBasis");
+    if (basis) basis.textContent = state.vatIncluded ? "VAT 포함 결제 예상가" : "VAT 별도";
+  }
+
   function copyLink(url) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(
@@ -1715,6 +1776,11 @@ const DATA = (function () {
         readItemKey,
         loadFavorites,
         saveFavorites,
+        loadVatIncluded,
+        saveVatIncluded,
+        vatPrice,
+        displayPrice,
+        displayWon,
         validQuantity,
         loadEstimate,
         saveEstimate,
@@ -1849,6 +1915,14 @@ const DATA = (function () {
     renderTable(false);
     syncUrl(true);
   });
+  $("vatToggle").addEventListener("click", function () {
+    state.vatIncluded = !state.vatIncluded;
+    saveVatIncluded(storageOrNull(), state.vatIncluded);
+    renderVatState();
+    renderTable(false);
+    renderRecent();
+    renderMonthly($("monthFilter").value || undefined);
+  });
   $("resetFilters").addEventListener("click", resetFilters);
   $("chartClose").addEventListener("click", closeDialog);
   $("chartShare").addEventListener("click", shareChart);
@@ -1948,6 +2022,7 @@ const DATA = (function () {
   if (navigator.onLine === false) toast("오프라인 · 저장된 가격을 보여줍니다.");
 
   readUrlState();
+  renderVatState();
   renderStats();
   renderRecent();
   renderMonthly();
