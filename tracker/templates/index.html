@@ -35,90 +35,129 @@
     <a id="actionsLink" href="https://github.com/" target="_blank" rel="noopener">Actions 상태 보기</a>
   </div>
 
-  <section class="recent" id="recentPanel" aria-labelledby="recentTitle">
-    <details id="recentDetails">
-      <summary class="recent-summary">
-        <div class="recent-head-left">
-          <h2 id="recentTitle">최근 변동</h2>
-          <p class="small" id="recentSub">불러오는 중…</p>
+  <div class="summary-hub" id="summaryHub">
+    <div class="summary-tabs" role="tablist" aria-label="요약 정보">
+      <button type="button" class="summary-tab active" id="tabRecent" role="tab" aria-selected="true" aria-controls="recentPanel">
+        <span class="tab-icon">⚡</span> 최근 변동
+      </button>
+      <button type="button" class="summary-tab" id="tabMonthly" role="tab" aria-selected="false" aria-controls="monthlyPanel">
+        <span class="tab-icon">📅</span> 월별 요약
+      </button>
+      <button type="button" class="summary-tab" id="tabEstimate" role="tab" aria-selected="false" aria-controls="estimatePanel">
+        <span class="tab-icon">🧾</span> 예상 결제액 <span class="tab-badge" id="tabEstimateBadge" hidden>0</span>
+      </button>
+      <button type="button" class="summary-toggle-btn" id="summaryCollapseBtn" aria-label="요약 접기/펼치기" title="요약 접기/펼치기">
+        <span class="collapse-icon">▲</span>
+      </button>
+    </div>
+    <div class="summary-content" id="summaryContent">
+      <section class="recent summary-panel active" id="recentPanel" role="tabpanel" aria-labelledby="tabRecent">
+        <details id="recentDetails" open>
+          <summary class="recent-summary">
+            <div class="recent-head-left">
+              <h2 id="recentTitle">최근 변동</h2>
+              <p class="small" id="recentSub">불러오는 중…</p>
+            </div>
+          </summary>
+          <ul class="recent-list" id="recentList"></ul>
+        </details>
+      </section>
+
+      <section class="recent monthly summary-panel" id="monthlyPanel" role="tabpanel" aria-labelledby="tabMonthly" aria-labelledby="monthlyTitle" hidden>
+        <div class="monthly-head">
+          <h2 id="monthlyTitle">월별 가격 요약</h2>
+          <select id="monthFilter" aria-label="요약할 월 선택"></select>
         </div>
-      </summary>
-      <ul class="recent-list" id="recentList"></ul>
-    </details>
-  </section>
+        <div id="monthlyBody" aria-live="polite">
+          <p class="small" id="monthlySub"></p>
+          <div class="recent-counts" id="monthlyCounts" role="group" aria-label="월별 변동 종류 필터"></div>
+          <details id="monthlyDetails">
+            <summary class="monthly-ranking-title" id="monthlyListTitle">인하 금액 TOP 5</summary>
+            <p class="small" id="monthlyListHint">시술별 가장 큰 1회 인하 기준 · 재등장 가격 차이는 제외</p>
+            <ul class="recent-list" id="monthlyList"></ul>
+          </details>
+        </div>
+      </section>
 
-  <section class="recent monthly" aria-labelledby="monthlyTitle">
-    <div class="monthly-head">
-      <h2 id="monthlyTitle">월별 가격 요약</h2>
-      <select id="monthFilter" aria-label="요약할 월 선택"></select>
+      <section class="estimate summary-panel" id="estimatePanel" role="tabpanel" aria-labelledby="tabEstimate" aria-labelledby="estimateTitle" hidden>
+        <details id="estimateDetails" open>
+          <summary class="estimate-summary" id="estimateSummary">
+            <span><strong id="estimateTitle">예상 결제액</strong><span class="small" id="estimateCount">시술 상세에서 계산에 담아 보세요.</span></span>
+            <strong id="estimateTotal">0원</strong>
+          </summary>
+          <p class="small">최신 공개 할인가 기준입니다. 수량 1은 표시된 상품·패키지 1개이며, 회차를 따로 곱하지 않습니다.</p>
+          <ul class="estimate-list" id="estimateList" aria-label="계산에 담은 시술"></ul>
+          <div class="estimate-options">
+            <label><input type="checkbox" id="estimateVat" checked> VAT 10% 포함</label>
+            <button type="button" class="link-btn" id="estimateClear" disabled>전체 비우기</button>
+          </div>
+          <dl class="estimate-totals" aria-live="polite">
+            <div><dt>시술 합계</dt><dd id="estimateSubtotal">0원</dd></div>
+            <div><dt id="estimateVatLabel">VAT (10%)</dt><dd id="estimateTax">0원</dd></div>
+            <div class="estimate-grand-total"><dt>예상 결제액</dt><dd id="estimatePayable">0원</dd></div>
+          </dl>
+          <p class="small">VAT는 시술 합계의 10%를 원 단위로 반올림합니다. 이벤트 적용 조건에 따라 실제 결제액은 달라질 수 있습니다.</p>
+        </details>
+      </section>
     </div>
-    <div id="monthlyBody" aria-live="polite">
-      <p class="small" id="monthlySub"></p>
-      <div class="recent-counts" id="monthlyCounts" role="group" aria-label="월별 변동 종류 필터"></div>
-      <details id="monthlyDetails">
-        <summary class="monthly-ranking-title" id="monthlyListTitle">인하 금액 TOP 5</summary>
-        <p class="small" id="monthlyListHint">시술별 가장 큰 1회 인하 기준 · 재등장 가격 차이는 제외</p>
-        <ul class="recent-list" id="monthlyList"></ul>
-      </details>
-    </div>
-  </section>
-
-  <section class="estimate" aria-labelledby="estimateTitle">
-    <details id="estimateDetails">
-      <summary class="estimate-summary" id="estimateSummary">
-        <span><strong id="estimateTitle">예상 결제액</strong><span class="small" id="estimateCount">시술 상세에서 계산에 담아 보세요.</span></span>
-        <strong id="estimateTotal">0원</strong>
-      </summary>
-      <p class="small">최신 공개 할인가 기준입니다. 수량 1은 표시된 상품·패키지 1개이며, 회차를 따로 곱하지 않습니다.</p>
-      <ul class="estimate-list" id="estimateList" aria-label="계산에 담은 시술"></ul>
-      <div class="estimate-options">
-        <label><input type="checkbox" id="estimateVat" checked> VAT 10% 포함</label>
-        <button type="button" class="link-btn" id="estimateClear" disabled>전체 비우기</button>
-      </div>
-      <dl class="estimate-totals" aria-live="polite">
-        <div><dt>시술 합계</dt><dd id="estimateSubtotal">0원</dd></div>
-        <div><dt id="estimateVatLabel">VAT (10%)</dt><dd id="estimateTax">0원</dd></div>
-        <div class="estimate-grand-total"><dt>예상 결제액</dt><dd id="estimatePayable">0원</dd></div>
-      </dl>
-      <p class="small">VAT는 시술 합계의 10%를 원 단위로 반올림합니다. 이벤트 적용 조건에 따라 실제 결제액은 달라질 수 있습니다.</p>
-    </details>
-  </section>
+  </div>
 
   <div class="section-heading">
     <div><h2 id="catalogTitle">이벤트 전체보기</h2><p>수원점 공개 할인가 기준 · VAT 별도</p></div>
     <span class="result-count" id="count" aria-live="polite"></span>
   </div>
   <nav class="category-strip" id="categoryChips" aria-label="이벤트 카테고리"></nav>
-  <div class="toolbar" role="group" aria-labelledby="catalogTitle">
-    <form class="search" id="searchForm" role="search">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-        <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>
-      </svg>
-      <input id="q" type="search" placeholder="시술명·카테고리 검색 (예: 피코토닝)" autocomplete="off" aria-label="검색">
-    </form>
-    <select id="statusFilter" aria-label="판매 상태">
-      <option value="active">판매 중</option>
-      <option value="ended">종료</option>
-      <option value="all">전체</option>
-    </select>
-    <button type="button" class="toggle" id="changedToggle" aria-pressed="false" title="직전 수집 대비 변동이 있는 시술만 봅니다">변동만</button>
-    <button type="button" class="toggle" id="favoritesToggle" aria-pressed="false" aria-controls="eventGrid tableWrap" title="관심 시술로 저장한 항목만 봅니다" hidden>관심 <span id="favoritesCount">0</span></button>
-    <select id="sortFilter" aria-label="정렬">
-      <option value="category">카테고리순</option>
-      <option value="recent">최근 변동순</option>
-      <option value="discount-desc">할인율 높은순</option>
-      <option value="price-desc">가격 높은순</option>
-      <option value="price-asc">가격 낮은순</option>
-      <option value="name">이름순</option>
-    </select>
-    <select id="pageSizeFilter" aria-label="한 번에 볼 개수">
-      <option value="40">40개씩</option>
-      <option value="100">100개씩</option>
-      <option value="all">전체</option>
-    </select>
-    <button type="button" class="toggle" id="expandAllToggle" aria-pressed="false">전체 펼치기</button>
-    <button type="button" class="toggle" id="viewToggle" aria-pressed="false">표로 보기</button>
-    <button type="button" class="toggle" id="vatToggle" aria-pressed="false" title="부가세 10%를 더한 결제 예상가로 표시합니다">VAT 포함</button>
+  <div class="toolbar-wrapper" id="toolbarWrapper">
+    <div class="toolbar" role="group" aria-labelledby="catalogTitle">
+      <form class="search" id="searchForm" role="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>
+        </svg>
+        <input id="q" type="search" placeholder="시술명·카테고리 검색 (예: 피코토닝)" autocomplete="off" aria-label="검색">
+      </form>
+      <div class="toolbar-primary-actions">
+        <select id="sortFilter" aria-label="정렬">
+          <option value="category">카테고리순</option>
+          <option value="recent">최근 변동순</option>
+          <option value="discount-desc">할인율 높은순</option>
+          <option value="price-desc">가격 높은순</option>
+          <option value="price-asc">가격 낮은순</option>
+          <option value="name">이름순</option>
+        </select>
+        <button type="button" class="toggle" id="favoritesToggle" aria-pressed="false" aria-controls="eventGrid tableWrap" title="관심 시술로 저장한 항목만 봅니다" hidden>관심 <span id="favoritesCount">0</span></button>
+        <button type="button" class="toggle filter-more-btn" id="filterMoreToggle" aria-expanded="false" aria-controls="filterDrawer" title="상세 필터 및 보기 설정">
+          <svg class="filter-icon" viewBox="0 0 20 20" fill="currentColor" width="15" height="15" aria-hidden="true"><path fill-rule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 018 18.25v-5.757a2.25 2.25 0 00-.659-1.591L2.659 6.22A2.25 2.25 0 012 4.629V2.34a.75.75 0 01.628-.74z" clip-rule="evenodd" /></svg>
+          <span>필터</span>
+          <span class="filter-active-dot" id="filterActiveDot" hidden></span>
+        </button>
+      </div>
+    </div>
+    <div class="filter-drawer" id="filterDrawer" hidden>
+      <div class="filter-drawer-group">
+        <span class="filter-drawer-label">표시 조건</span>
+        <div class="filter-drawer-controls">
+          <button type="button" class="toggle" id="changedToggle" aria-pressed="false" title="직전 수집 대비 변동이 있는 시술만 봅니다">변동만</button>
+          <button type="button" class="toggle" id="vatToggle" aria-pressed="false" title="부가세 10%를 더한 결제 예상가로 표시합니다">VAT 포함</button>
+          <select id="statusFilter" aria-label="판매 상태">
+            <option value="active">판매 중</option>
+            <option value="ended">종료 항목</option>
+            <option value="all">전체 상태</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-drawer-group">
+        <span class="filter-drawer-label">보기 설정</span>
+        <div class="filter-drawer-controls">
+          <button type="button" class="toggle" id="viewToggle" aria-pressed="false">표로 보기</button>
+          <button type="button" class="toggle" id="expandAllToggle" aria-pressed="false">전체 펼치기</button>
+          <select id="pageSizeFilter" aria-label="한 번에 볼 개수">
+            <option value="40">40개씩</option>
+            <option value="100">100개씩</option>
+            <option value="all">전체 보기</option>
+          </select>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="event-grid" id="eventGrid" aria-label="시술별 이벤트 가격"></div>

@@ -221,6 +221,12 @@ const DATA = (function () {
     $("estimatePayable").textContent = won(result.total);
     $("estimateVat").checked = estimate.includeVat;
     $("estimateClear").disabled = result.lines.length === 0;
+    const badge = $("tabEstimateBadge");
+    if (badge) {
+      const count = result.lines.length;
+      badge.textContent = String(count);
+      badge.hidden = count === 0;
+    }
     return result;
   }
 
@@ -423,6 +429,7 @@ const DATA = (function () {
     $("viewToggle").textContent = state.view === "cards" ? "표로 보기" : "카드로 보기";
     $("viewToggle").setAttribute("aria-pressed", String(state.view === "table"));
     updateFavoritesUi();
+    updateFilterDot();
   }
 
   function overallDelta(item) {
@@ -1675,6 +1682,7 @@ const DATA = (function () {
     $("changedToggle").classList.remove("on");
     $("changedToggle").setAttribute("aria-pressed", "false");
     updateFavoritesUi();
+    updateFilterDot();
     renderTable();
     syncUrl(true);
   }
@@ -1724,6 +1732,75 @@ const DATA = (function () {
     }
     const basis = $("priceBasis");
     if (basis) basis.textContent = state.vatIncluded ? "VAT 포함 결제 예상가" : "VAT 별도";
+  }
+
+  function updateFilterDot() {
+    const dot = $("filterActiveDot");
+    if (!dot) return;
+    const isCustom = state.status !== "active" || state.changedOnly || state.vatIncluded || state.view !== "cards" || state.pageSize !== PAGE_SIZE;
+    dot.hidden = !isCustom;
+    const btn = $("filterMoreToggle");
+    if (btn) {
+      if (isCustom && !btn.classList.contains("on")) {
+        btn.style.borderColor = "var(--accent)";
+      } else if (!isCustom && !btn.classList.contains("on")) {
+        btn.style.borderColor = "";
+      }
+    }
+  }
+
+  function setSummaryTab(tabName) {
+    const tabs = {
+      recent: { tab: $("tabRecent"), panel: $("recentPanel") },
+      monthly: { tab: $("tabMonthly"), panel: $("monthlyPanel") },
+      estimate: { tab: $("tabEstimate"), panel: $("estimatePanel") }
+    };
+    Object.keys(tabs).forEach(function (key) {
+      const isTarget = key === tabName;
+      if (tabs[key].tab) {
+        tabs[key].tab.classList.toggle("active", isTarget);
+        tabs[key].tab.setAttribute("aria-selected", String(isTarget));
+      }
+      if (tabs[key].panel) {
+        tabs[key].panel.hidden = !isTarget;
+        tabs[key].panel.classList.toggle("active", isTarget);
+      }
+    });
+    const content = $("summaryContent");
+    const collapseBtn = $("summaryCollapseBtn");
+    if (content) content.classList.remove("collapsed");
+    if (collapseBtn) collapseBtn.classList.remove("collapsed");
+  }
+
+  function initSummaryHub() {
+    const tabRecent = $("tabRecent");
+    const tabMonthly = $("tabMonthly");
+    const tabEstimate = $("tabEstimate");
+    const collapseBtn = $("summaryCollapseBtn");
+    if (tabRecent) tabRecent.addEventListener("click", function () { setSummaryTab("recent"); });
+    if (tabMonthly) tabMonthly.addEventListener("click", function () { setSummaryTab("monthly"); });
+    if (tabEstimate) tabEstimate.addEventListener("click", function () { setSummaryTab("estimate"); });
+    if (collapseBtn) {
+      collapseBtn.addEventListener("click", function () {
+        const content = $("summaryContent");
+        if (!content) return;
+        const isCollapsed = content.classList.toggle("collapsed");
+        this.classList.toggle("collapsed", isCollapsed);
+        this.setAttribute("aria-expanded", String(!isCollapsed));
+      });
+    }
+  }
+
+  function initFilterDrawer() {
+    const toggle = $("filterMoreToggle");
+    const drawer = $("filterDrawer");
+    if (!toggle || !drawer) return;
+    toggle.addEventListener("click", function () {
+      drawer.hidden = !drawer.hidden;
+      toggle.classList.toggle("on", !drawer.hidden);
+      toggle.setAttribute("aria-expanded", String(!drawer.hidden));
+      updateFilterDot();
+    });
   }
 
   function copyLink(url) {
@@ -1811,9 +1888,11 @@ const DATA = (function () {
   });
   $("estimateShow").addEventListener("click", function () {
     closeDialog();
+    setSummaryTab("estimate");
     $("estimateDetails").open = true;
     $("estimateSummary").focus({ preventScroll: true });
-    $("estimateDetails").scrollIntoView({ block: "start", behavior: "smooth" });
+    const hub = $("summaryHub");
+    if (hub) hub.scrollIntoView({ block: "start", behavior: "smooth" });
   });
   $("estimateVat").addEventListener("change", function (event) {
     estimate.includeVat = event.target.checked;
@@ -1872,6 +1951,7 @@ const DATA = (function () {
   $("statusFilter").addEventListener("change", function (event) {
     state.status = event.target.value;
     renderTable();
+    updateFilterDot();
     syncUrl(true);
   });
   $("monthFilter").addEventListener("change", function (event) {
@@ -1883,6 +1963,7 @@ const DATA = (function () {
     this.classList.toggle("on", state.changedOnly);
     this.setAttribute("aria-pressed", String(state.changedOnly));
     renderTable();
+    updateFilterDot();
     syncUrl(true);
   });
   $("favoritesToggle").addEventListener("click", function () {
@@ -1899,6 +1980,7 @@ const DATA = (function () {
   $("pageSizeFilter").addEventListener("change", function (event) {
     state.pageSize = event.target.value === "all" ? Infinity : Number(event.target.value);
     renderTable();
+    updateFilterDot();
     syncUrl(true);
   });
   $("expandAllToggle").addEventListener("click", function () {
@@ -1913,6 +1995,7 @@ const DATA = (function () {
   $("viewToggle").addEventListener("click", function () {
     state.view = state.view === "cards" ? "table" : "cards";
     renderTable(false);
+    updateFilterDot();
     syncUrl(true);
   });
   $("vatToggle").addEventListener("click", function () {
@@ -1922,6 +2005,7 @@ const DATA = (function () {
     renderTable(false);
     renderRecent();
     renderMonthly($("monthFilter").value || undefined);
+    updateFilterDot();
   });
   $("resetFilters").addEventListener("click", resetFilters);
   $("chartClose").addEventListener("click", closeDialog);
@@ -2022,6 +2106,8 @@ const DATA = (function () {
   if (navigator.onLine === false) toast("오프라인 · 저장된 가격을 보여줍니다.");
 
   readUrlState();
+  initSummaryHub();
+  initFilterDrawer();
   renderVatState();
   renderStats();
   renderRecent();
@@ -2030,6 +2116,7 @@ const DATA = (function () {
   renderStale();
   buildCategoryChips();
   applyStateToControls();
+  updateFilterDot();
   renderTable();
   const initialItemKey = readItemKey(window.location.search);
   if (initialItemKey) {

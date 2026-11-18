@@ -292,6 +292,8 @@ def test_write_graph_splits_static_assets(tmp_path: Path):
     assert "const DATA = __PAYLOAD__" not in html
     assert "__ASSET_VERSION__" not in html
     assert "__DATA_VERSION__" not in html
+    assert 'id="summaryHub"' in html
+    assert 'id="filterDrawer"' in html
     assert ":root {" in css
     assert "30일 최저" in js
     assert "window.__PRICE_DATA__" in js
