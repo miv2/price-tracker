@@ -41,6 +41,7 @@ const DATA = (function () {
   const VAT_RATE = 0.1;
   const MAX_QUANTITY = 99;
   const MAX_PACKAGE_COUNT = 99;
+  const CHART_PREVIEW_ROWS = 5;
   const PACKAGE_RE = /^(.*?)\s*(\d+)\s*회\s*$/;
   const CHOSUNG = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
   const CHANGE_LABELS = { decrease: "인하", increase: "인상", new: "신규", returned: "재등장", removed: "종료" };
@@ -503,6 +504,28 @@ const DATA = (function () {
     return text + " · 1회와 동일";
   }
 
+  // 같은 이름의 1회·2회·3회… 패키지를 회차순으로 모은다.
+  // 중복 회차는 목록과 같은 기준으로 고르되, 보고 있는 상품은 그대로 표시한다.
+  function packagePeers(item, catalog) {
+    const info = packageInfo(item);
+    if (!info) return [];
+    const list = catalog || items;
+    const byCount = new Map();
+    for (const entry of list) {
+      if (entry.active === false) continue;
+      const peer = packageInfo(entry);
+      if (!peer || peer.base !== info.base) continue;
+      const existing = byCount.get(peer.count);
+      if (!existing || compareDuplicateRank(entry, existing) < 0) byCount.set(peer.count, entry);
+    }
+    if (item.active !== false) byCount.set(info.count, item);
+    const peers = Array.from(byCount.values());
+    if (item.active === false) peers.push(item);
+    return peers.sort(function (a, b) {
+      return packageInfo(a).count - packageInfo(b).count;
+    });
+  }
+
   // 같은 시술이 여러 카테고리에 중복 등록된 경우 한 번만 남긴다.
   // 이름 안에 카테고리명이 들어 있는 항목(예: '리투오' 카테고리의 '리투오 5cc 1회')을
   // 우선하고, 없으면 이름이 짧은 카테고리를 고른다.
@@ -805,6 +828,7 @@ const DATA = (function () {
         " · 신규 " + (counts.new || 0) + " · 재등장 " + (counts.returned || 0) + " · 종료 " + (counts.removed || 0);
     }
     if (DATA.source_url) $("sourceLink").href = DATA.source_url;
+    $("chartSource").href = $("chartSourceFooter").href = $("sourceLink").href;
     if (DATA.repo_url) {
       const base = DATA.repo_url.replace(/\/$/, "");
       $("changesLink").href = base + "/blob/HEAD/CHANGES.md";
@@ -1515,71 +1539,97 @@ const DATA = (function () {
     updateExpandAllButton();
   }
 
-  function openChart(item, options) {
-    const fromHistory = !!(options && options.fromHistory);
-    const dialog = $("chartDialog");
+  function renderChartHero(item, last, peers) {
+    $("chartPriceLabel").textContent = item.active === false ? "마지막 확인가" : "현재가";
+    $("chartPriceBasis").textContent = state.vatIncluded ? "VAT 포함" : "VAT 별도";
+    $("chartPrice").textContent = displayWon(last[1]);
+
+    const listPrice = $("chartListPrice");
+    listPrice.hidden = !(item.list_price > last[1]);
+    listPrice.textContent = listPrice.hidden ? "" : "정가 " + displayWon(item.list_price);
+
+    const rate = item.discount_rate !== undefined ? item.discount_rate : discountRate(item);
+    const discount = $("chartDiscount");
+    discount.hidden = listPrice.hidden || !(rate > 0);
+    discount.textContent = discount.hidden ? "" : rate + "% 할인";
+
+    const unit = $("chartUnit");
+    const unitText = unitPriceText(item, peers);
+    unit.textContent = unitText;
+    unit.hidden = unitText === "";
+  }
+
+  function renderPackageCompare(item, peers) {
+    const tbody = $("packageRows");
+    tbody.textContent = "";
+    $("packageCompare").hidden = peers.length < 2;
+    if (peers.length < 2) return;
+
+    let bestUnit = Infinity;
+    for (const peer of peers) {
+      if (peer.active === false) continue;
+      bestUnit = Math.min(bestUnit, displayPrice(currentPrice(peer)) / packageInfo(peer).count);
+    }
+
+    const fragment = document.createDocumentFragment();
+    for (const peer of peers) {
+      const info = packageInfo(peer);
+      const tr = document.createElement("tr");
+      const selected = peer === item;
+      if (selected) tr.className = "selected-package";
+
+      const countCell = document.createElement("th");
+      countCell.scope = "row";
+      countCell.textContent = info.count + "회";
+      if (selected) {
+        const status = document.createElement("span");
+        status.className = "package-row-note";
+        status.textContent = peer.active === false ? "선택 · 종료" : "선택";
+        countCell.appendChild(status);
+      }
+
+      const price = currentPrice(peer);
+      const unitCell = td(won(unitPriceValue(peer)), "num");
+      if (peer.active !== false && displayPrice(price) / info.count === bestUnit) {
+        const best = document.createElement("span");
+        best.className = "package-row-note good";
+        best.textContent = "회당 최저";
+        unitCell.appendChild(best);
+      }
+
+      const comparison = packageComparison(peer, peers);
+      const percent = comparison ? comparison.percent : 0;
+      let savings = info.count === 1 && peer.active !== false ? "기준" : "—";
+      if (comparison) {
+        savings = percent > 0 ? percent + "% 저렴" : percent < 0 ? Math.abs(percent) + "% 비쌈" : "동일";
+      }
+      tr.append(countCell, td(displayWon(price), "num"), unitCell,
+        td(savings, "num " + (percent > 0 ? "good" : percent < 0 ? "bad" : "flat")));
+      fragment.appendChild(tr);
+    }
+    tbody.appendChild(fragment);
+  }
+
+  function renderChartSummary(item) {
     const last = item.points[item.points.length - 1];
     const first = item.points[0];
+    $("chartLow").textContent = displayWon(item.all_time_low);
+    $("chartAvg").textContent = displayWon(item.avg_price);
+    $("chartLow30").textContent = displayWon(min30(item));
 
-    $("chartCat").textContent = (item.category || "기타") + (item.active ? "" : " · 종료된 항목");
-    $("chartName").textContent = item.name;
+    const diff = displayPrice(last[1]) - displayPrice(first[1]);
+    const delta = $("chartDelta");
+    delta.className = diff > 0 ? "bad" : diff < 0 ? "good" : "";
+    delta.textContent = item.points.length === 1 ? "—" : diff === 0 ? "변동 없음" :
+      (diff > 0 ? "+" : "−") + won(Math.abs(diff));
+  }
 
-    const meta = $("chartMeta");
-    meta.textContent = "";
-    function part(label, value, className) {
-      const chip = document.createElement("span");
-      chip.className = "chart-badge" + (className ? " " + className : "");
-      const lbl = document.createElement("span");
-      lbl.textContent = label;
-      const bold = document.createElement("b");
-      bold.textContent = value;
-      chip.append(lbl, bold);
-      meta.appendChild(chip);
-    }
-    part("현재", displayWon(last[1]));
-    part("금액 기준", state.vatIncluded ? "VAT 포함" : "VAT 별도");
-    if (item.returned) {
-      part("최근 재등장", item.returned.date);
-      part("재등장 가격 비교", returnedPriceText(item.returned));
-    }
-    if (item.list_price !== undefined && item.list_price !== null) part("정가", displayWon(item.list_price));
-    const rate = item.discount_rate !== undefined ? item.discount_rate : discountRate(item);
-    if (rate !== null && rate > 0) part("할인율", rate + "%", "good");
-    const pkg = packageInfo(item);
-    if (pkg && pkg.count >= 2) {
-      part("회당 단가", displayWon(unitPriceValue(item)));
-      const comparison = packageComparison(item);
-      if (comparison) {
-        part("1회 대비", comparison.percent === 0 ? "동일" : Math.abs(comparison.percent) + "% " +
-          (comparison.percent > 0 ? "저렴" : "비쌈"), comparison.percent > 0 ? "good" : comparison.percent < 0 ? "bad" : "");
-      }
-    }
-
-    if (item.all_time_low !== undefined) {
-      part("역대 최저", displayWon(item.all_time_low), last[1] <= item.all_time_low && item.points.length >= 2 ? "good" : "");
-    }
-    if (item.avg_price !== undefined && item.points.length > 1) {
-      part("역대 평균", displayWon(item.avg_price));
-      const vsAvg = item.price_vs_avg;
-      if (vsAvg !== undefined && vsAvg !== 0) {
-        part("평균 대비", (vsAvg > 0 ? "+" : "") + vsAvg + "%", vsAvg < 0 ? "good" : "bad");
-      }
-    }
-
-    if ((DATA.days || 0) >= 2) {
-      const low = min30(item);
-      if (low !== null) part("30일 최저", displayWon(low), currentPrice(item) <= low ? "good" : "");
-    }
-    if (item.points.length > 1) {
-      const diff = displayPrice(last[1]) - displayPrice(first[1]);
-      if (diff !== 0) part("첫 기록 대비", (diff > 0 ? "+" : "-") + fmt(Math.abs(diff)) + "원", diff > 0 ? "bad" : "good");
-    }
-    part("기간", mmdd(first[0]) + " ~ " + mmdd(last[0]) + " (" + item.points.length + "일 기록)");
-
+  function renderChartHistory(item, expanded) {
     const tbody = $("chartPoints");
     tbody.textContent = "";
     const fragment = document.createDocumentFragment();
-    for (let i = item.points.length - 1; i >= 0; i -= 1) {
+    const start = expanded ? 0 : Math.max(0, item.points.length - CHART_PREVIEW_ROWS);
+    for (let i = item.points.length - 1; i >= start; i -= 1) {
       const point = item.points[i];
       const tr = document.createElement("tr");
       tr.appendChild(td(point[0]));
@@ -1597,12 +1647,37 @@ const DATA = (function () {
     }
     tbody.appendChild(fragment);
 
+    const toggle = $("chartHistoryToggle");
+    toggle.hidden = item.points.length <= CHART_PREVIEW_ROWS;
+    toggle.setAttribute("aria-expanded", String(expanded));
+    toggle.textContent = expanded ? "전체 이력 접기" : "전체 이력 펼치기 (" + fmt(item.points.length) + "건)";
+  }
+
+  function openChart(item, options) {
+    const fromHistory = !!(options && options.fromHistory);
+    const dialog = $("chartDialog");
+    const last = item.points[item.points.length - 1];
+    const peers = packagePeers(item);
+
+    $("chartCat").textContent = (item.category || "기타") + (item.active ? "" : " · 종료된 항목");
+    $("chartName").textContent = item.name;
+    renderChartHero(item, last, peers);
+    renderChartSummary(item);
+    renderPackageCompare(item, peers);
+    renderChartHistory(item, false);
+    $("chartReturned").hidden = !item.returned;
+    $("chartReturned").textContent = item.returned
+      ? "최근 재등장 " + item.returned.date + " · " + returnedPriceText(item.returned) : "";
+    $("chartCollected").dateTime = last[0];
+    $("chartCollected").textContent = last[0];
+
     previousFocusElement = document.activeElement;
     openItemKey = itemKey(item);
     if (!dialog.open) dialog.showModal();
+    dialog.scrollTop = 0;
     updateScrollBtn();
     const closeBtn = $("chartClose");
-    if (closeBtn) closeBtn.focus();
+    if (closeBtn) closeBtn.focus({ preventScroll: true });
     drawChart(item);
     updateFavoritesUi();
     updateEstimateChart();
@@ -2368,6 +2443,10 @@ const DATA = (function () {
   });
   $("resetFilters").addEventListener("click", resetFilters);
   $("chartClose").addEventListener("click", closeDialog);
+  $("chartHistoryToggle").addEventListener("click", function (event) {
+    const item = findItemByKey(openItemKey);
+    if (item) renderChartHistory(item, event.currentTarget.getAttribute("aria-expanded") !== "true");
+  });
   $("chartShare").addEventListener("click", shareChart);
   $("chartFav").addEventListener("click", function () {
     if (!openItemKey) return;

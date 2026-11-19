@@ -1,8 +1,8 @@
 /* 유앤아이의원 가격 추적 서비스 워커.
-   index.html을 만들 때 캐시 이름과 미리 받을 파일 목록(8d74480ae2, ["./", "./index.html", "./assets/style.css?v=88fc2e0158", "./assets/app.js?v=88fc2e0158", "./assets/vendor/chart.umd.min.js?v=88fc2e0158", "./assets/data.js?v=9632945f23", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png"])을
+   index.html을 만들 때 캐시 이름과 미리 받을 파일 목록(c51780c3d6, ["./", "./index.html", "./assets/style.css?v=7ef5849422", "./assets/app.js?v=7ef5849422", "./assets/vendor/chart.umd.min.js?v=7ef5849422", "./assets/data.js?v=9632945f23", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png"])을
    채워 넣는다. 해시가 붙은 자산은 캐시에서 바로 쓰고, 페이지는 네트워크를 먼저 본다. */
-const CACHE = "price-tracker-8d74480ae2";
-const PRECACHE = ["./", "./index.html", "./assets/style.css?v=88fc2e0158", "./assets/app.js?v=88fc2e0158", "./assets/vendor/chart.umd.min.js?v=88fc2e0158", "./assets/data.js?v=9632945f23", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png"];
+const CACHE = "price-tracker-c51780c3d6";
+const PRECACHE = ["./", "./index.html", "./assets/style.css?v=7ef5849422", "./assets/app.js?v=7ef5849422", "./assets/vendor/chart.umd.min.js?v=7ef5849422", "./assets/data.js?v=9632945f23", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png"];
 const OFFLINE_URL = "./";
 
 self.addEventListener("install", function (event) {

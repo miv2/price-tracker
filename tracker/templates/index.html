@@ -249,15 +249,49 @@
       <button class="icon-btn" id="chartClose" type="button" aria-label="닫기">×</button>
     </div>
   </div>
+  <div class="chart-price-hero">
+    <div class="hero-price-top">
+      <span class="hero-price-label" id="chartPriceLabel">현재가</span>
+      <span class="hero-price-basis" id="chartPriceBasis">VAT 별도</span>
+    </div>
+    <div class="hero-price-values">
+      <strong class="hero-price" id="chartPrice">—</strong>
+      <s class="hero-price-list" id="chartListPrice" hidden></s>
+      <span class="hero-price-rate" id="chartDiscount" hidden></span>
+    </div>
+    <div class="hero-price-sub" id="chartUnit" hidden></div>
+  </div>
   <div class="chart-estimate-actions">
     <button type="button" class="estimate-add" id="estimateAdd">계산에 담기</button>
+    <a class="chart-source-action" id="chartSource" target="_blank" rel="noopener">원본 페이지 보기 ↗</a>
     <button type="button" class="link-btn" id="estimateShow" hidden>계산 내역 보기</button>
-    <span class="small" id="estimateAdded"></span>
+    <span class="small" id="estimateAdded" role="status"></span>
   </div>
-  <div class="chart-meta" id="chartMeta"></div>
+  <dl class="chart-summary" aria-label="가격 요약">
+    <div><dt>역대 최저</dt><dd id="chartLow"></dd></div>
+    <div><dt>역대 평균</dt><dd id="chartAvg"></dd></div>
+    <div><dt>30일 최저</dt><dd id="chartLow30"></dd></div>
+    <div><dt>첫 기록 대비</dt><dd id="chartDelta"></dd></div>
+  </dl>
   <div class="chart-holder"><div class="chart-frame"><canvas id="chartCanvas" role="img" aria-label="가격 추이 그래프"></canvas></div></div>
-  <div class="points">
-    <div class="points-scroll">
+  <section class="chart-section" id="packageCompare" aria-labelledby="packageTitle" hidden>
+    <h3 id="packageTitle">같은 시술 패키지 비교</h3>
+    <div class="chart-table">
+      <table>
+        <caption>같은 시술의 회차별 가격 비교</caption>
+        <thead>
+          <tr><th scope="col">회차</th><th scope="col" class="num">총 가격</th><th scope="col" class="num">회당</th><th scope="col" class="num">1회 대비</th></tr>
+        </thead>
+        <tbody id="packageRows"></tbody>
+      </table>
+    </div>
+  </section>
+  <section class="chart-section" aria-labelledby="chartHistoryTitle">
+    <div class="chart-section-head">
+      <h3 id="chartHistoryTitle">날짜별 가격</h3>
+      <button class="link-btn" id="chartHistoryToggle" type="button" aria-expanded="false" aria-controls="chartPoints" hidden>전체 이력 펼치기</button>
+    </div>
+    <div class="chart-table">
       <table>
         <caption>날짜별 가격</caption>
         <thead>
@@ -266,6 +300,11 @@
         <tbody id="chartPoints"></tbody>
       </table>
     </div>
+    <p class="chart-returned small" id="chartReturned" hidden></p>
+  </section>
+  <div class="chart-footer small">
+    <span>마지막 수집일 <time id="chartCollected"></time></span>
+    <a id="chartSourceFooter" target="_blank" rel="noopener">원본 링크 ↗</a>
   </div>
 </dialog>
 
