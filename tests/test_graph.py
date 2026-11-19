@@ -60,6 +60,16 @@ def test_payload_groups_points_and_marks_ended_items():
     assert items["특가 A"]["all_time_low"] == 89_000
 
 
+def test_payload_includes_event_period_when_known():
+    payload = build_payload(
+        ROWS, [active_item()], "https://example.com/", event_period=("2026-11-01", "2026-11-30"),
+    )
+    assert payload["event_period"] == {"start": "2026-11-01", "end": "2026-11-30"}
+
+    # 기간을 모르면 키는 있지만 null이다(프런트에서 배너를 숨긴다).
+    assert build_payload(ROWS, [active_item()], "https://example.com/")["event_period"] is None
+
+
 def test_recent_changes_compare_last_two_dates():
     payload = build_payload(ROWS, [active_item()], "https://example.com/")
     recent = payload["recent"]

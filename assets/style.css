@@ -446,6 +446,38 @@ details[open] .recent-head-left h2::after {
 .section-heading h2 { margin: 0; font-size: 28px; line-height: 1.3; letter-spacing: -.045em; }
 .section-heading p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
 .section-heading .result-count { margin: 0 0 2px; font-size: 13px; font-weight: 700; color: var(--accent); }
+.event-deadline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.event-deadline[hidden] { display: none; }
+.event-deadline .deadline-badge {
+  flex: none;
+  min-width: 52px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.event-deadline .deadline-text { min-width: 0; overflow-wrap: anywhere; }
+.event-deadline.upcoming { background: var(--subtle-bg); }
+.event-deadline.upcoming .deadline-badge { background: var(--up); }
+.event-deadline.ended { background: var(--subtle-bg); }
+.event-deadline.ended .deadline-badge { background: var(--muted); }
 .estimate {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -682,6 +714,7 @@ details[open] .recent-head-left h2::after {
 }
 .event-card:not(.compact) .event-open { margin-left: 6px; }
 .event-extra { display: block; margin-top: 3px; color: var(--accent); font-size: 11px; font-weight: 700; }
+.event-extra.unit { color: var(--muted); font-weight: 600; }
 .event-more { width: 100%; min-height: 40px; margin-top: auto; border: 0; border-radius: 999px; background: var(--more-btn-bg); color: var(--more-btn-text); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
 .event-more:hover, .event-more:focus-visible { background: var(--more-btn-hover); outline: none; }
 .event-more span { color: var(--more-btn-cyan); font-weight: 800; }
@@ -794,6 +827,7 @@ tbody tr.row:focus-visible { outline: 2px solid var(--accent); outline-offset: -
   vertical-align: middle;
 }
 .badge.low { color: var(--down); border-color: rgba(200, 51, 104, .35); background: rgba(200, 51, 104, .08); }
+.unit-price { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; font-weight: 600; line-height: 1.35; white-space: normal; }
 .price { color: var(--accent); font-size: 17px; font-weight: 750; letter-spacing: -.025em; font-variant-numeric: tabular-nums; }
 .good { color: var(--down); }
 .bad { color: var(--up); }
@@ -1029,6 +1063,10 @@ dialog::backdrop { background: rgba(12, 16, 24, .55); backdrop-filter: blur(2px)
     font-size: 11px;
     padding: 2px 6px;
     margin-left: 0;
+  }
+  tbody tr.row td:nth-child(3) .unit-price {
+    flex-basis: 100%;
+    font-size: 11.5px;
   }
 
   /* 최근 변동 & 최저/최고 정보 요약줄 */

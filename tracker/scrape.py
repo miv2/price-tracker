@@ -24,6 +24,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass, field
+from datetime import date
 
 import requests
 from bs4 import BeautifulSoup
@@ -43,9 +44,16 @@ SELECTOR_CATEGORY = "p.prd_text"
 SELECTOR_NAME = "p.prd_info"
 SELECTOR_LIST_PRICE = "p.origin .num"
 SELECTOR_SALE_PRICE = "p.discount .num"
+SELECTOR_EVENT_PERIOD = "#eventDateText"
 
 _PRICE_RE = re.compile(r"[\d,]+")
 _WS_RE = re.compile(r"\s+")
+# "2026.11.01 ~ 2026.11.30" 또는 "2026.11.01 ~ 11.30" 형태를 읽는다.
+_PERIOD_RE = re.compile(
+    r"(\d{4})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{1,2})"
+    r"\s*~\s*"
+    r"(?:(\d{4})\s*[.\-/]\s*)?(\d{1,2})\s*[.\-/]\s*(\d{1,2})"
+)
 
 
 class ScrapeError(Exception):
@@ -65,6 +73,7 @@ class ParseResult:
     duplicates: int = 0
     skipped: int = 0
     conflicts: list[tuple[str, str]] = field(default_factory=list)
+    event_period: tuple[str, str] | None = None
 
     @property
     def unique_count(self) -> int:
@@ -86,6 +95,30 @@ def parse_price(value: str | None) -> int | None:
         return int(match.group(0).replace(",", ""))
     except ValueError:
         return None
+
+
+def parse_event_period(value: str | None) -> tuple[str, str] | None:
+    """'2026.11.01 ~ 2026.11.30' 같은 전체 이벤트 기간을 ISO 날짜 두 개로 바꾼다.
+
+    끝 날짜의 연도가 생략되면 시작 연도를 쓰고, 12월~1월처럼 해가 넘어가는
+    표기는 끝 연도를 다음 해로 보정한다. 형식이 다르면 None을 돌려준다.
+    """
+    if not value:
+        return None
+    match = _PERIOD_RE.search(normalize_text(value))
+    if not match:
+        return None
+    start_year, start_month, start_day, end_year, end_month, end_day = match.groups()
+    try:
+        start = date(int(start_year), int(start_month), int(start_day))
+        end = date(int(end_year) if end_year else start.year, int(end_month), int(end_day))
+        if end < start and end_year is None:
+            end = date(start.year + 1, int(end_month), int(end_day))
+    except ValueError:
+        return None
+    if end < start:
+        return None
+    return start.isoformat(), end.isoformat()
 
 
 def fetch_html(config: Config) -> str:
@@ -142,6 +175,10 @@ def parse_items(html: str) -> ParseResult:
     soup = BeautifulSoup(html, "html.parser")
     boxes = soup.select(SELECTOR_BOX)
     result = ParseResult(boxes=len(boxes))
+    period_node = soup.select_one(SELECTOR_EVENT_PERIOD)
+    result.event_period = parse_event_period(
+        period_node.get_text(" ", strip=True) if period_node else None
+    )
 
     seen: dict[tuple[str, str], Item] = {}
     for box in boxes:

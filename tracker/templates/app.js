@@ -31,6 +31,7 @@ const DATA = (function () {
     total: 0,
     items: []
   };
+  const EVENT_PERIOD = DATA.event_period || null;
   const changedIndexes = new Set((RECENT.items || []).map(function (change) { return change.index; }));
   const PAGE_SIZE = 40;
   const FAVORITES_KEY = "priceTracker.favorites.v1";
@@ -39,6 +40,8 @@ const DATA = (function () {
   const THEME_KEY = "priceTracker.theme.v1";
   const VAT_RATE = 0.1;
   const MAX_QUANTITY = 99;
+  const MAX_PACKAGE_COUNT = 99;
+  const PACKAGE_RE = /^(.*?)\s*(\d+)\s*회\s*$/;
   const CHOSUNG = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
   const CHANGE_LABELS = { decrease: "인하", increase: "인상", new: "신규", returned: "재등장", removed: "종료" };
   const MONTHLY_EMPTY = {
@@ -48,7 +51,7 @@ const DATA = (function () {
     returned: "이달에 재등장한 항목이 없습니다.",
     removed: "이달에 종료된 항목이 없습니다."
   };
-  const state = { q: "", category: "", budget: "", status: "active", changedOnly: false, favoritesOnly: false, sort: "category", view: "cards", pageSize: PAGE_SIZE, vatIncluded: loadVatIncluded(storageOrNull()) };
+  const state = { q: "", category: "", budget: "", status: "active", changedOnly: false, favoritesOnly: false, dedupe: false, sort: "category", view: "cards", pageSize: PAGE_SIZE, vatIncluded: loadVatIncluded(storageOrNull()) };
   let displayLimit = PAGE_SIZE;
   let monthlyKind = "";
   let openItemKey = "";
@@ -63,7 +66,7 @@ const DATA = (function () {
 
   const $ = (id) => document.getElementById(id);
 
-  const SORT_VALUES = ["category", "recent", "discount-desc", "price-desc", "price-asc", "name"];
+  const SORT_VALUES = ["category", "recent", "discount-desc", "price-desc", "price-asc", "unit-asc", "name"];
 
   // 누적 상한형 예산 구간. 마지막 칩만 "10만원 초과"를 모은다.
   const BUDGET_OPTIONS = [
@@ -443,6 +446,126 @@ const DATA = (function () {
     return true;
   }
 
+  // "리투오 5cc 3회"처럼 이름 끝에 회차가 있는 항목만 패키지로 본다.
+  // "5회 패키지", "3회+co2 1회 (…)"처럼 끝이 회차가 아니면 계산하지 않는다.
+  function packageInfo(item) {
+    const match = PACKAGE_RE.exec(String(item.name || ""));
+    if (!match) return null;
+    const count = Number(match[2]);
+    if (!Number.isInteger(count) || count < 1 || count > MAX_PACKAGE_COUNT) return null;
+    return { base: match[1].trim(), count: count };
+  }
+
+  // 회당 단가(화면 표시 금액 기준). 회차를 알 수 없으면 null.
+  function unitPriceValue(item) {
+    const info = packageInfo(item);
+    if (!info) return null;
+    return Math.round(displayPrice(currentPrice(item)) / info.count);
+  }
+
+  function oneSessionPrice(base, catalog) {
+    const list = catalog || items;
+    for (const entry of list) {
+      if (entry.active === false) continue;
+      const info = packageInfo(entry);
+      if (info && info.count === 1 && info.base === base) return currentPrice(entry);
+    }
+    return null;
+  }
+
+  // 같은 이름의 1회 항목과 비교해 패키지가 유리한지 계산한다.
+  // percent > 0 이면 회당 단가가 1회보다 저렴하다는 뜻이다.
+  function packageComparison(item, catalog) {
+    const info = packageInfo(item);
+    if (!info || info.count < 2) return null;
+    const one = oneSessionPrice(info.base, catalog);
+    if (one === null) return null;
+    const oneShown = displayPrice(one);
+    const unit = displayPrice(currentPrice(item)) / info.count;
+    if (!oneShown) return null;
+    return {
+      base: info.base,
+      count: info.count,
+      unit: Math.round(unit),
+      onePrice: one,
+      percent: Math.round((1 - unit / oneShown) * 100)
+    };
+  }
+
+  function unitPriceText(item, catalog) {
+    const info = packageInfo(item);
+    if (!info || info.count < 2) return "";
+    const text = "회당 " + won(unitPriceValue(item));
+    const comparison = packageComparison(item, catalog);
+    if (!comparison) return text;
+    if (comparison.percent > 0) return text + " · 1회 대비 " + comparison.percent + "% 저렴";
+    if (comparison.percent < 0) return text + " · 1회 대비 " + Math.abs(comparison.percent) + "% 비쌈";
+    return text + " · 1회와 동일";
+  }
+
+  // 같은 시술이 여러 카테고리에 중복 등록된 경우 한 번만 남긴다.
+  // 이름 안에 카테고리명이 들어 있는 항목(예: '리투오' 카테고리의 '리투오 5cc 1회')을
+  // 우선하고, 없으면 이름이 짧은 카테고리를 고른다.
+  function duplicateRank(item) {
+    const name = String(item.name || "");
+    const category = String(item.category || "");
+    const inName = category !== "" && name.includes(category);
+    return [
+      item.active === false ? 1 : 0,
+      inName ? 0 : 1,
+      category.length,
+      Number.isInteger(item.idx) ? item.idx : 0
+    ];
+  }
+
+  function compareDuplicateRank(a, b) {
+    const ra = duplicateRank(a);
+    const rb = duplicateRank(b);
+    for (let i = 0; i < ra.length; i += 1) {
+      if (ra[i] !== rb[i]) return ra[i] - rb[i];
+    }
+    return 0;
+  }
+
+  function dedupeItems(list) {
+    const keepers = new Map();
+    for (const item of list) {
+      const current = keepers.get(item.name);
+      if (!current || compareDuplicateRank(item, current) < 0) keepers.set(item.name, item);
+    }
+    return list.filter(function (item) { return keepers.get(item.name) === item; });
+  }
+
+  function todayKst(now) {
+    const base = now ? new Date(now) : new Date();
+    if (Number.isNaN(base.getTime())) return null;
+    return new Date(base.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  }
+
+  // 이벤트 기간과 오늘(KST)을 비교해 D-day 정보를 만든다.
+  function eventDday(period, today) {
+    if (!period || !period.start || !period.end) return null;
+    const start = Date.parse(period.start + "T00:00:00Z");
+    const end = Date.parse(period.end + "T00:00:00Z");
+    const current = Date.parse((today || todayKst()) + "T00:00:00Z");
+    if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(current)) return null;
+    if (current < start) {
+      return { phase: "before", days: Math.round((start - current) / 86400000) };
+    }
+    if (current > end) {
+      return { phase: "after", days: Math.round((current - end) / 86400000) };
+    }
+    return { phase: "during", days: Math.round((end - current) / 86400000) };
+  }
+
+  function periodText(period) {
+    if (!period || !period.start || !period.end) return "";
+    const start = period.start.replace(/-/g, ".");
+    const end = period.end.replace(/-/g, ".");
+    if (period.start.slice(0, 4) === period.end.slice(0, 4)) return start + " ~ " + end.slice(5);
+    return start + " ~ " + end;
+  }
+
   function parseUrlState(search) {
     const next = {
       q: "",
@@ -451,6 +574,7 @@ const DATA = (function () {
       status: "active",
       changedOnly: false,
       favoritesOnly: false,
+      dedupe: false,
       sort: "category",
       view: "cards",
       pageSize: PAGE_SIZE
@@ -466,6 +590,7 @@ const DATA = (function () {
     if (status === "active" || status === "ended" || status === "all") next.status = status;
     if (params.get("changed") === "1") next.changedOnly = true;
     if (params.get("fav") === "1") next.favoritesOnly = true;
+    if (params.get("dedupe") === "1") next.dedupe = true;
     const sort = params.get("sort");
     if (SORT_VALUES.indexOf(sort) !== -1) next.sort = sort;
     if (params.get("view") === "table") next.view = "table";
@@ -488,6 +613,7 @@ const DATA = (function () {
     if (current.status !== "active") params.set("status", current.status);
     if (current.changedOnly) params.set("changed", "1");
     if (current.favoritesOnly) params.set("fav", "1");
+    if (current.dedupe) params.set("dedupe", "1");
     if (current.sort !== "category") params.set("sort", current.sort);
     if (current.view !== "cards") params.set("view", "table");
     if (current.pageSize !== PAGE_SIZE) params.set("limit", current.pageSize === Infinity ? "all" : String(current.pageSize));
@@ -517,6 +643,11 @@ const DATA = (function () {
     $("pageSizeFilter").value = state.pageSize === Infinity ? "all" : String(state.pageSize);
     $("changedToggle").classList.toggle("on", state.changedOnly);
     $("changedToggle").setAttribute("aria-pressed", String(state.changedOnly));
+    const dedupeToggle = $("dedupeToggle");
+    if (dedupeToggle) {
+      dedupeToggle.classList.toggle("on", state.dedupe);
+      dedupeToggle.setAttribute("aria-pressed", String(state.dedupe));
+    }
     $("viewToggle").textContent = state.view === "cards" ? "표로 보기" : "카드로 보기";
     $("viewToggle").setAttribute("aria-pressed", String(state.view === "table"));
     updateFavoritesUi();
@@ -877,6 +1008,35 @@ const DATA = (function () {
     $("staleNotice").hidden = false;
   }
 
+  function renderDeadline() {
+    const box = $("eventDeadline");
+    if (!box) return;
+    const info = eventDday(EVENT_PERIOD, todayKst());
+    if (!info) {
+      box.hidden = true;
+      return;
+    }
+    const badge = $("deadlineBadge");
+    const text = $("deadlineText");
+    box.classList.remove("ended", "upcoming");
+    if (info.phase === "after") {
+      badge.textContent = "종료";
+      text.textContent = "이벤트가 " + mmdd(EVENT_PERIOD.end) + "에 종료되었습니다 · 가격이 갱신됐을 수 있습니다.";
+      box.classList.add("ended");
+    } else if (info.phase === "before") {
+      badge.textContent = "D-" + info.days;
+      text.textContent = "이벤트 시작까지 " + info.days + "일 · " + periodText(EVENT_PERIOD);
+      box.classList.add("upcoming");
+    } else if (info.days === 0) {
+      badge.textContent = "D-DAY";
+      text.textContent = "오늘 이벤트가 종료됩니다 · " + periodText(EVENT_PERIOD);
+    } else {
+      badge.textContent = "D-" + info.days;
+      text.textContent = "이벤트 종료까지 " + info.days + "일 · " + periodText(EVENT_PERIOD);
+    }
+    box.hidden = false;
+  }
+
   function buildCategoryChips() {
     const chips = $("categoryChips");
     const categories = Array.from(new Set(items.map((item) => item.category))).sort(function (a, b) {
@@ -987,6 +1147,16 @@ const DATA = (function () {
       sorted.sort(function (a, b) { return currentPrice(b) - currentPrice(a); });
     } else if (state.sort === "price-asc") {
       sorted.sort(function (a, b) { return currentPrice(a) - currentPrice(b); });
+    } else if (state.sort === "unit-asc") {
+      sorted.sort(function (a, b) {
+        const ua = unitPriceValue(a);
+        const ub = unitPriceValue(b);
+        if (ua === null && ub === null) return compareName(a, b);
+        if (ua === null) return 1;
+        if (ub === null) return -1;
+        if (ua !== ub) return ua - ub;
+        return compareName(a, b);
+      });
     } else if (state.sort === "name") {
       sorted.sort(compareName);
     } else {
@@ -1070,6 +1240,14 @@ const DATA = (function () {
       rateBadge.style.color = "var(--down)";
       rateBadge.style.borderColor = "rgba(200, 51, 104, .3)";
       priceCell.appendChild(rateBadge);
+    }
+
+    const unitText = unitPriceText(item);
+    if (unitText) {
+      const unit = document.createElement("span");
+      unit.className = "unit-price";
+      unit.textContent = unitText;
+      priceCell.appendChild(unit);
     }
 
     const change = latestChange(item);
@@ -1189,6 +1367,13 @@ const DATA = (function () {
         extra.textContent = item.active ? "30일 최저" : "종료된 이벤트 · 마지막 확인가";
         line.appendChild(extra);
       }
+      const unitText = unitPriceText(item);
+      if (unitText) {
+        const unit = document.createElement("span");
+        unit.className = "event-extra unit";
+        unit.textContent = unitText;
+        line.appendChild(unit);
+      }
       line.addEventListener("click", function () { openChart(item); });
       lines.push(line);
       body.appendChild(line);
@@ -1283,6 +1468,7 @@ const DATA = (function () {
     grid.textContent = "";
     const fragment = document.createDocumentFragment();
     currentFilteredList = sortItems(items.filter(matches));
+    if (state.dedupe) currentFilteredList = dedupeItems(currentFilteredList);
     syncCategoryChips(false);
     syncBudgetChips(false);
     let pageItems;
@@ -1359,6 +1545,15 @@ const DATA = (function () {
     if (item.list_price !== undefined && item.list_price !== null) part("정가", displayWon(item.list_price));
     const rate = item.discount_rate !== undefined ? item.discount_rate : discountRate(item);
     if (rate !== null && rate > 0) part("할인율", rate + "%", "good");
+    const pkg = packageInfo(item);
+    if (pkg && pkg.count >= 2) {
+      part("회당 단가", displayWon(unitPriceValue(item)));
+      const comparison = packageComparison(item);
+      if (comparison) {
+        part("1회 대비", comparison.percent === 0 ? "동일" : Math.abs(comparison.percent) + "% " +
+          (comparison.percent > 0 ? "저렴" : "비쌈"), comparison.percent > 0 ? "good" : comparison.percent < 0 ? "bad" : "");
+      }
+    }
 
     if (item.all_time_low !== undefined) {
       part("역대 최저", displayWon(item.all_time_low), last[1] <= item.all_time_low && item.points.length >= 2 ? "good" : "");
@@ -1803,12 +1998,18 @@ const DATA = (function () {
     state.status = "active";
     state.changedOnly = false;
     state.favoritesOnly = false;
+    state.dedupe = false;
     state.sort = "category";
     $("q").value = "";
     $("statusFilter").value = "active";
     $("sortFilter").value = "category";
     $("changedToggle").classList.remove("on");
     $("changedToggle").setAttribute("aria-pressed", "false");
+    const dedupeToggle = $("dedupeToggle");
+    if (dedupeToggle) {
+      dedupeToggle.classList.remove("on");
+      dedupeToggle.setAttribute("aria-pressed", "false");
+    }
     syncBudgetChips();
     updateFavoritesUi();
     updateFilterDot();
@@ -1866,7 +2067,7 @@ const DATA = (function () {
   function updateFilterDot() {
     const dot = $("filterActiveDot");
     if (!dot) return;
-    const isCustom = state.status !== "active" || state.changedOnly || state.budget !== "" || state.vatIncluded || state.view !== "cards" || state.pageSize !== PAGE_SIZE;
+    const isCustom = state.status !== "active" || state.changedOnly || state.dedupe || state.budget !== "" || state.vatIncluded || state.view !== "cards" || state.pageSize !== PAGE_SIZE;
     dot.hidden = !isCustom;
     const btn = $("filterMoreToggle");
     if (btn) {
@@ -1979,6 +2180,17 @@ const DATA = (function () {
         buildQuery,
         matchesBudget,
         BUDGET_OPTIONS,
+        packageInfo,
+        unitPriceValue,
+        oneSessionPrice,
+        packageComparison,
+        unitPriceText,
+        dedupeItems,
+        duplicateRank,
+        eventDday,
+        todayKst,
+        periodText,
+        EVENT_PERIOD,
         itemKey,
         findItemByKey,
         readItemKey,
@@ -2102,6 +2314,17 @@ const DATA = (function () {
     updateFilterDot();
     syncUrl(true);
   });
+  const dedupeToggle = $("dedupeToggle");
+  if (dedupeToggle) {
+    dedupeToggle.addEventListener("click", function () {
+      state.dedupe = !state.dedupe;
+      this.classList.toggle("on", state.dedupe);
+      this.setAttribute("aria-pressed", String(state.dedupe));
+      renderTable();
+      updateFilterDot();
+      syncUrl(true);
+    });
+  }
   $("favoritesToggle").addEventListener("click", function () {
     state.favoritesOnly = !state.favoritesOnly;
     renderTable();
@@ -2251,6 +2474,7 @@ const DATA = (function () {
   renderMonthly();
   renderEstimate();
   renderStale();
+  renderDeadline();
   buildCategoryChips();
   buildBudgetChips();
   applyStateToControls();

@@ -13,7 +13,7 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
 <title>유앤아이의원 가격 추적</title>
-<link rel="stylesheet" href="assets/style.css?v=1ba2ec85e3">
+<link rel="stylesheet" href="assets/style.css?v=88fc2e0158">
 <script>
 (function(){
   try {
@@ -129,6 +129,10 @@
     <div><h2 id="catalogTitle">이벤트 전체보기</h2><p>수원점 공개 할인가 기준 · VAT 별도</p></div>
     <span class="result-count" id="count" aria-live="polite"></span>
   </div>
+  <div class="event-deadline" id="eventDeadline" hidden>
+    <span class="deadline-badge" id="deadlineBadge">D-11</span>
+    <span class="deadline-text" id="deadlineText"></span>
+  </div>
   <nav class="category-strip" id="categoryChips" aria-label="이벤트 카테고리"></nav>
   <div class="budget-strip" id="budgetChips" role="group" aria-label="예산 가격대 필터">
     <span class="budget-label" aria-hidden="true">
@@ -154,6 +158,7 @@
           <option value="discount-desc">할인율 높은순</option>
           <option value="price-desc">가격 높은순</option>
           <option value="price-asc">가격 낮은순</option>
+          <option value="unit-asc">회당 단가 낮은순</option>
           <option value="name">이름순</option>
         </select>
         <button type="button" class="toggle" id="favoritesToggle" aria-pressed="false" aria-controls="eventGrid tableWrap" title="관심 시술로 저장한 항목만 봅니다" hidden>관심 <span id="favoritesCount">0</span></button>
@@ -169,6 +174,7 @@
         <span class="filter-drawer-label">표시 조건</span>
         <div class="filter-drawer-controls">
           <button type="button" class="toggle" id="changedToggle" aria-pressed="false" title="직전 수집 대비 변동이 있는 시술만 봅니다">변동만</button>
+          <button type="button" class="toggle" id="dedupeToggle" aria-pressed="false" title="같은 시술이 여러 카테고리에 중복 등록된 경우 한 번만 표시합니다">중복 숨기기</button>
           <button type="button" class="toggle" id="vatToggle" aria-pressed="false" title="부가세 10%를 더한 결제 예상가로 표시합니다">VAT 포함</button>
           <select id="statusFilter" aria-label="판매 상태">
             <option value="active">판매 중</option>
@@ -224,7 +230,7 @@
   <div class="wrap">
     <p>데이터: <a id="sourceLink" href="https://www.swuni114.co.kr/" target="_blank" rel="noopener">유앤아이의원 수원점 이벤트 페이지</a> · 가격은 할인가 기준이며 <span id="priceBasis">VAT 별도</span>입니다.</p>
     <p>변동 내역: <a id="changesLink" href="CHANGES.md">CHANGES.md</a> · 원본 데이터: <a id="historyLink" href="history.csv">history.csv</a>, <a id="pricesLink" href="prices.json">prices.json</a></p>
-    <p>GitHub Actions가 하루 1회 자동으로 갱신합니다. <button type="button" class="link-btn install-btn" id="installBtn" hidden>앱으로 설치</button></p>
+    <p>GitHub Actions가 하루 여러 번 자동으로 갱신합니다. <button type="button" class="link-btn install-btn" id="installBtn" hidden>앱으로 설치</button></p>
   </div>
 </footer>
 
@@ -265,8 +271,8 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="assets/vendor/chart.umd.min.js?v=1ba2ec85e3"></script>
-<script src="assets/data.js?v=103f4fafb7"></script>
-<script src="assets/app.js?v=1ba2ec85e3"></script>
+<script src="assets/vendor/chart.umd.min.js?v=88fc2e0158"></script>
+<script src="assets/data.js?v=9632945f23"></script>
+<script src="assets/app.js?v=88fc2e0158"></script>
 </body>
 </html>

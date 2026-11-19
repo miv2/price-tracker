@@ -16,6 +16,7 @@ const DEFAULT_STATE = {
   status: "active",
   changedOnly: false,
   favoritesOnly: false,
+  dedupe: false,
   sort: "category",
   view: "cards",
   pageSize: app.PAGE_SIZE
@@ -583,6 +584,7 @@ test("parseUrlState(buildQuery(state)) - 주소 왕복에서 상태가 보존된
     status: "all",
     changedOnly: true,
     favoritesOnly: false,
+    dedupe: true,
     sort: "discount-desc",
     view: "table",
     pageSize: 100
@@ -676,3 +678,120 @@ test("won()/mmdd() - 금액과 날짜 표기를 맞춘다", () => {
   assert.equal(app.won(undefined), "—");
   assert.equal(app.mmdd("2026-11-15"), "11.15");
 });
+
+test("packageInfo() - 이름 끝의 회차만 패키지로 인식한다", () => {
+  assert.deepEqual(app.packageInfo({ name: "리투오 5cc 3회" }), { base: "리투오 5cc", count: 3 });
+  assert.deepEqual(app.packageInfo({ name: "리투오 5cc 1회 " }), { base: "리투오 5cc", count: 1 });
+
+  // 끝이 회차가 아니면 계산하지 않는다(오탐 방지).
+  assert.equal(app.packageInfo({ name: "울트라펄스 앙코르 5회 패키지" }), null);
+  assert.equal(app.packageInfo({ name: "한관종 아그네스 3회+co2 1회 (눈 밑, 눈꺼풀 기준)" }), null);
+  assert.equal(app.packageInfo({ name: "관리 장바구니 10회 (아쿠아필, 비타민 中 택 2)" }), null);
+  assert.equal(app.packageInfo({ name: "회차 없음" }), null);
+  assert.equal(app.packageInfo({ name: "0회" }), null);
+  assert.equal(app.packageInfo({ name: "100회" }), null);
+});
+
+test("unitPriceValue()/packageComparison() - 회당 단가와 1회 대비 차이를 계산한다", () => {
+  const catalog = [
+    item("리투오 5cc 1회", [["2026-11-19", 600000]], { active: true, category: "리투오" }),
+    item("리투오 5cc 3회", [["2026-11-19", 1390000]], { active: true, category: "리투오" }),
+    item("고우리 5cc 2회", [["2026-11-19", 990000]], { active: true, category: "고우리" })
+  ];
+
+  assert.equal(app.unitPriceValue(catalog[1]), 463333);
+  assert.equal(app.unitPriceValue(catalog[0]), 600000);
+  assert.equal(app.unitPriceValue(item("패키지 아님", [["2026-11-19", 1000]])), null);
+
+  const comparison = app.packageComparison(catalog[1], catalog);
+  assert.equal(comparison.count, 3);
+  assert.equal(comparison.unit, 463333);
+  assert.equal(comparison.onePrice, 600000);
+  assert.equal(comparison.percent, 23);
+
+  // 1회 항목이 없으면 비교만 생략하고 회당 단가는 그대로 계산한다.
+  assert.equal(app.packageComparison(catalog[2], catalog), null);
+  assert.equal(app.unitPriceText(catalog[2], catalog), "회당 495,000원");
+
+  // VAT 포함 표시에서도 비율은 같고 금액만 10% 오른다.
+  app.state.vatIncluded = true;
+  const included = app.packageComparison(catalog[1], catalog);
+  assert.equal(included.unit, 509667);
+  assert.equal(included.percent, 23);
+  assert.equal(app.unitPriceText(catalog[1], catalog), "회당 509,667원 · 1회 대비 23% 저렴");
+  app.state.vatIncluded = false;
+
+  assert.equal(app.unitPriceText(catalog[0], catalog), ""); // 1회 항목에는 배지를 붙이지 않는다.
+});
+
+test("sortItems() - 회당 단가 낮은순은 회차를 알 수 없는 항목을 뒤로 보낸다", () => {
+  const list = [
+    item("비싼 1회", [["2026-11-19", 600000]]),
+    item("3회", [["2026-11-19", 900000]]),
+    item("10회", [["2026-11-19", 1000000]]),
+    item("회차 없음", [["2026-11-19", 1000]])
+  ];
+  resetState({ sort: "unit-asc" });
+  assert.deepEqual(
+    app.sortItems(list).map((entry) => entry.name),
+    ["10회", "3회", "비싼 1회", "회차 없음"]
+  );
+});
+
+test("dedupeItems() - 같은 이름은 대표 항목 하나만 남긴다", () => {
+  const list = [
+    { idx: 0, active: true, category: "✨ECM부스터 리투오", name: "리투오 5cc 1회" },
+    { idx: 1, active: true, category: "리투오", name: "리투오 5cc 1회" },
+    { idx: 2, active: true, category: "입고 연장 이벤트", name: "리투오 5cc 1회" },
+    { idx: 3, active: true, category: "다른 시술", name: "다른 시술 1회" }
+  ];
+  assert.deepEqual(
+    app.dedupeItems(list).map((entry) => entry.category),
+    ["리투오", "다른 시술"]
+  );
+
+  // 판매 중인 항목을 종료된 항목보다 우선한다.
+  const activeFirst = [
+    { idx: 0, active: false, category: "짧은", name: "울써마지 패키지" },
+    { idx: 1, active: true, category: "입고 연장 이벤트", name: "울써마지 패키지" }
+  ];
+  assert.deepEqual(app.dedupeItems(activeFirst).map((entry) => entry.idx), [1]);
+
+  // 이름에 카테고리가 없으면 더 짧은 카테고리를 고른다.
+  const noNameMatch = [
+    { idx: 0, active: true, category: "아주 긴 카테고리 이름", name: "이름만 있는 시술" },
+    { idx: 1, active: true, category: "짧은", name: "이름만 있는 시술" }
+  ];
+  assert.deepEqual(app.dedupeItems(noNameMatch).map((entry) => entry.idx), [1]);
+});
+
+test("eventDday() - 이벤트 기간과 오늘(KST)을 비교한다", () => {
+  const period = { start: "2026-11-01", end: "2026-11-30" };
+  assert.deepEqual(app.eventDday(period, "2026-11-19"), { phase: "during", days: 11 });
+  assert.deepEqual(app.eventDday(period, "2026-11-30"), { phase: "during", days: 0 });
+  assert.deepEqual(app.eventDday(period, "2026-12-01"), { phase: "after", days: 1 });
+  assert.deepEqual(app.eventDday(period, "2026-10-31"), { phase: "before", days: 1 });
+  assert.equal(app.eventDday(null, "2026-11-19"), null);
+  assert.equal(app.eventDday({ start: "2026-11-01" }, "2026-11-19"), null);
+});
+
+test("todayKst()/periodText() - 한국 날짜와 기간 표기를 만든다", () => {
+  assert.equal(app.todayKst("2026-11-19T14:59:00Z"), "2026-11-19");
+  assert.equal(app.todayKst("2026-11-19T15:00:00Z"), "2026-11-20");
+  assert.equal(app.todayKst("잘못된 날짜"), null);
+
+  assert.equal(app.periodText({ start: "2026-11-01", end: "2026-11-30" }), "2026.11.01 ~ 11.30");
+  assert.equal(app.periodText({ start: "2026-12-20", end: "2027-01-05" }), "2026.12.20 ~ 2027.01.05");
+  assert.equal(app.periodText(null), "");
+});
+
+test("parseUrlState()/buildQuery() - 중복 숨기기 상태를 주소에 보존한다", () => {
+  assert.equal(app.parseUrlState("?dedupe=1").dedupe, true);
+  assert.equal(app.parseUrlState("?dedupe=0").dedupe, false);
+
+  const query = app.buildQuery({ ...DEFAULT_STATE, dedupe: true });
+  assert.equal(new URLSearchParams(query).get("dedupe"), "1");
+  assert.equal(app.parseUrlState("?" + query).dedupe, true);
+  assert.equal(new URLSearchParams(app.buildQuery(DEFAULT_STATE)).has("dedupe"), false);
+});
+

@@ -84,6 +84,7 @@ def build_payload(
     active_items: list[Item],
     source_url: str,
     repo_url: str = "",
+    event_period: tuple[str, str] | None = None,
 ) -> Payload:
     """그래프 페이지가 쓰는 JSON 데이터를 만든다.
 
@@ -99,6 +100,10 @@ def build_payload(
     return {
         "source_url": source_url,
         "repo_url": repo_url,
+        "event_period": (
+            {"start": event_period[0], "end": event_period[1]}
+            if event_period else None
+        ),
         "days": len(dates),
         "first_date": dates[0] if dates else None,
         "last_date": dates[-1] if dates else None,
@@ -223,8 +228,9 @@ def write_graph(
     source_url: str,
     template_path: Path = TEMPLATE_PATH,
     repo_url: str = "",
+    event_period: tuple[str, str] | None = None,
 ) -> None:
-    payload = build_payload(rows, active_items, source_url, repo_url)
+    payload = build_payload(rows, active_items, source_url, repo_url, event_period)
     assets = load_assets(template_path.parent)
     assets_dir = path.parent / ASSET_DIR_NAME
 

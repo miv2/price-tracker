@@ -14,7 +14,7 @@ from .config import Config, ConfigError, load_config
 from .graph import write_graph
 from .history import HistoryError, load_history, record_snapshot
 from .models import Item, PriceRow
-from .prices import PricesError, load_prices, save_prices
+from .prices import PricesError, load_event_period, load_prices, save_prices
 from .report import build_entry, set_date_entry, summary_line
 from .scrape import (
     ParseResult,
@@ -196,6 +196,8 @@ def run(args: argparse.Namespace) -> int:
 
     html = _load_html(config, args.offline_html)
     parsed, items = _collect(config, html)
+    if parsed.event_period:
+        log.info("이벤트 기간: %s ~ %s", *parsed.event_period)
 
     if args.list_items:
         _print_items(items)
@@ -228,11 +230,13 @@ def run(args: argparse.Namespace) -> int:
         return 0
 
     snapshot = build_snapshot(items, previous, date)
+    event_period = parsed.event_period or load_event_period(paths.prices)
     save_prices(
         paths.prices,
         snapshot,
         updated_at=now_kst().isoformat(timespec="seconds"),
         source_url=config.source_url,
+        event_period=event_period,
     )
 
     history_changed = record_snapshot(paths.history, date, snapshot)
@@ -250,6 +254,7 @@ def run(args: argparse.Namespace) -> int:
         snapshot,
         config.source_url,
         repo_url=config.repo_url,
+        event_period=event_period,
     )
 
     log.info(

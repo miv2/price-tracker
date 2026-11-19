@@ -9,6 +9,7 @@ import pytest
 from tracker.scrape import (
     filter_items,
     matches_exclude,
+    parse_event_period,
     parse_items,
     parse_price,
 )
@@ -232,3 +233,34 @@ def test_fetch_html_5xx_succeeds_on_retry(monkeypatch):
     html = fetch_html(config)
     assert "ok" in html
     assert call_count == 3
+
+
+def test_parse_event_period_reads_full_and_short_ranges():
+    assert parse_event_period("2026.11.01 ~ 2026.11.30") == ("2026-11-01", "2026-11-30")
+    assert parse_event_period("2026.11.01 ~ 11.30") == ("2026-11-01", "2026-11-30")
+    assert parse_event_period("이벤트 기간 : 2026.12.20 ~ 01.05") == ("2026-12-20", "2027-01-05")
+
+
+def test_parse_event_period_rejects_unknown_or_invalid_values():
+    assert parse_event_period(None) is None
+    assert parse_event_period("") is None
+    assert parse_event_period("상시 진행") is None
+    assert parse_event_period("2026.11.30 ~ 2026.11.01") is None
+    assert parse_event_period("2026.02.30 ~ 2026.03.02") is None
+
+
+def test_parse_items_extracts_event_period():
+    html = """
+    <span id="eventDateText">2026.11.01 ~ 2026.11.30</span>
+    <div class="prd_list">
+      <li class="price_box">
+        <p class="prd_text">이벤트</p>
+        <p class="origin"><span class="num">10,000</span>원</p>
+        <p class="discount"><span class="num">8,000</span>원</p>
+        <p class="prd_info">시술 1회</p>
+      </li>
+    </div>
+    """
+    parsed = parse_items(html)
+    assert parsed.event_period == ("2026-11-01", "2026-11-30")
+    assert len(parsed.items) == 1

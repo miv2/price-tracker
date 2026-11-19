@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 from .models import Item
@@ -58,13 +59,38 @@ def save_prices(
     items: list[Item],
     updated_at: str,
     source_url: str,
+    event_period: tuple[str, str] | None = None,
 ) -> None:
     """현재 스냅샷을 사람이 읽기 좋은 형태로 저장한다."""
-    payload = {
+    payload: dict[str, object] = {
         "source_url": source_url,
         "updated_at": updated_at,
         "count": len(items),
         "items": [item.to_json() for item in sorted(items, key=lambda i: i.key)],
     }
+    if event_period:
+        payload["event_period"] = {"start": event_period[0], "end": event_period[1]}
     text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
     atomic_write_text(path, text)
+
+
+def load_event_period(path: Path) -> tuple[str, str] | None:
+    """prices.json에 저장된 이벤트 기간을 읽는다. 없거나 잘못됐으면 None."""
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    raw = data.get("event_period") if isinstance(data, dict) else None
+    if not isinstance(raw, dict):
+        return None
+    start, end = raw.get("start"), raw.get("end")
+    if not isinstance(start, str) or not isinstance(end, str):
+        return None
+    try:
+        if date.fromisoformat(end) < date.fromisoformat(start):
+            return None
+    except ValueError:
+        return None
+    return start, end
