@@ -828,7 +828,7 @@ const DATA = (function () {
         " · 신규 " + (counts.new || 0) + " · 재등장 " + (counts.returned || 0) + " · 종료 " + (counts.removed || 0);
     }
     if (DATA.source_url) $("sourceLink").href = DATA.source_url;
-    $("chartSource").href = $("chartSourceFooter").href = $("sourceLink").href;
+    $("chartSource").href = $("sourceLink").href;
     if (DATA.repo_url) {
       const base = DATA.repo_url.replace(/\/$/, "");
       $("changesLink").href = base + "/blob/HEAD/CHANGES.md";
