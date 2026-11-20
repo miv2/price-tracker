@@ -2260,6 +2260,7 @@ const DATA = (function () {
         oneSessionPrice,
         packageComparison,
         unitPriceText,
+        packagePeers,
         dedupeItems,
         duplicateRank,
         eventDday,

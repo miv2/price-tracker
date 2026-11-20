@@ -765,6 +765,58 @@ test("dedupeItems() - 같은 이름은 대표 항목 하나만 남긴다", () =>
   assert.deepEqual(app.dedupeItems(noNameMatch).map((entry) => entry.idx), [1]);
 });
 
+test("packagePeers() - 같은 시술의 패키지를 회차순으로 모은다", () => {
+  const catalog = [
+    item("리투오 5cc 3회", [["2026-11-19", 1390000]], { category: "리투오", idx: 1 }),
+    item("리투오 5cc 1회", [["2026-11-19", 600000]], { category: "리투오", idx: 0 }),
+    item("리투오 5cc 2회", [["2026-11-19", 990000]], { category: "리투오", idx: 2 }),
+    item("다른 시술 1회", [["2026-11-19", 10000]], { category: "피부", idx: 3 })
+  ];
+
+  const peers = app.packagePeers(catalog[0], catalog);
+  assert.deepEqual(
+    peers.map((entry) => entry.name),
+    ["리투오 5cc 1회", "리투오 5cc 2회", "리투오 5cc 3회"]
+  );
+  assert.equal(peers[2], catalog[0], "연 항목은 같은 객체로 남는다");
+
+  // 이름이 회차로 끝나지 않으면 비교 대상이 없다.
+  assert.deepEqual(
+    app.packagePeers(item("울트라펄스 앙코르 5회 패키지", [["2026-11-19", 1000]]), catalog),
+    []
+  );
+});
+
+test("packagePeers() - 같은 회차는 대표 항목 하나만 남기고 연 항목은 우선한다", () => {
+  const preferred = item("리투오 5cc 1회", [["2026-11-19", 600000]], { category: "리투오", idx: 0 });
+  const other = item("리투오 5cc 1회", [["2026-11-19", 600000]], { category: "✨ECM부스터 리투오", idx: 1 });
+  const selected = item("리투오 5cc 1회", [["2026-11-19", 600000]], { category: "입고 연장 이벤트", idx: 2 });
+  const catalog = [preferred, other, selected, item("리투오 5cc 3회", [["2026-11-19", 1390000]], { category: "리투오", idx: 3 })];
+
+  // 목록에서 열지 않은 1회는 이름에 카테고리가 들어 있는 항목을 고른다.
+  assert.equal(
+    app.packagePeers(catalog[3], catalog).find((entry) => entry.name === "리투오 5cc 1회"),
+    preferred
+  );
+
+  // 연 항목은 중복 순위와 무관하게 그대로 표시한다(표에서 '선택'으로 강조).
+  assert.equal(
+    app.packagePeers(selected, catalog).find((entry) => entry.name === "리투오 5cc 1회"),
+    selected
+  );
+});
+
+test("packagePeers() - 종료된 항목은 판매 중 항목 뒤에 붙인다", () => {
+  const ended = item("리투오 5cc 2회", [["2026-11-10", 900000]], { category: "리투오", idx: 0, active: false });
+  const active = item("리투오 5cc 2회", [["2026-11-19", 990000]], { category: "리투오", idx: 1, active: true });
+  const one = item("리투오 5cc 1회", [["2026-11-19", 600000]], { category: "리투오", idx: 2, active: true });
+
+  assert.deepEqual(
+    app.packagePeers(ended, [ended, active, one]).map((entry) => entry.idx),
+    [2, 1, 0]
+  );
+});
+
 test("eventDday() - 이벤트 기간과 오늘(KST)을 비교한다", () => {
   const period = { start: "2026-11-01", end: "2026-11-30" };
   assert.deepEqual(app.eventDday(period, "2026-11-19"), { phase: "during", days: 11 });
