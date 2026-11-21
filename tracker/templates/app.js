@@ -59,6 +59,8 @@ const DATA = (function () {
   let chartHistoryPushed = false;
   const favorites = loadFavorites(storageOrNull());
   const estimate = loadEstimate(storageOrNull());
+  // VAT 설정은 목록 표시와 예상 결제액 계산기가 함께 쓴다. 저장된 값이 다르면 목록 기준을 따른다.
+  estimate.includeVat = state.vatIncluded;
   const expandedCategories = new Set();
   let currentFilteredList = [];
   let currentPageItems = [];
@@ -190,7 +192,7 @@ const DATA = (function () {
     return Math.round(Number(price) * (1 + VAT_RATE));
   }
 
-  // 목록·표·차트에 보여 줄 금액. 계산기의 VAT 설정과는 별개다.
+  // 목록·표·차트·계산기가 같은 VAT 설정을 공유한다.
   function displayPrice(price) {
     return state.vatIncluded ? vatPrice(price) : price;
   }
@@ -288,16 +290,17 @@ const DATA = (function () {
   }
 
   function renderEstimateTotals() {
-    const result = calculateEstimate(estimate.quantities, items, estimate.includeVat);
+    estimate.includeVat = state.vatIncluded;
+    const result = calculateEstimate(estimate.quantities, items, state.vatIncluded);
     $("estimateCount").textContent = result.lines.length ? result.lines.length + "종 · " + result.quantityCount + "개 · " +
-      (estimate.includeVat ? "VAT 포함" : "VAT 별도") +
+      (state.vatIncluded ? "VAT 포함" : "VAT 별도") +
       (result.unavailableCount ? " · 종료·미확인 " + result.unavailableCount + "종 합계 제외" : "") : "시술 상세에서 계산에 담아 보세요.";
     $("estimateTotal").textContent = won(result.total);
     $("estimateSubtotal").textContent = won(result.subtotal);
     $("estimateTax").textContent = won(result.tax);
-    $("estimateVatLabel").textContent = estimate.includeVat ? "VAT (10%)" : "VAT 미포함";
+    $("estimateVatLabel").textContent = state.vatIncluded ? "VAT (10%)" : "VAT 미포함";
     $("estimatePayable").textContent = won(result.total);
-    $("estimateVat").checked = estimate.includeVat;
+    $("estimateVat").checked = state.vatIncluded;
     $("estimateClear").disabled = result.lines.length === 0;
     const badge = $("tabEstimateBadge");
     if (badge) {
@@ -2139,6 +2142,20 @@ const DATA = (function () {
     if (basis) basis.textContent = state.vatIncluded ? "VAT 포함 결제 예상가" : "VAT 별도";
   }
 
+  // 목록의 VAT 포함 토글과 계산기의 VAT 스위치를 한 번에 바꾼다.
+  function applyVatIncluded(included) {
+    state.vatIncluded = included;
+    estimate.includeVat = included;
+    saveVatIncluded(storageOrNull(), included);
+    saveEstimate(storageOrNull(), estimate);
+    renderVatState();
+    renderTable(false);
+    renderRecent();
+    renderMonthly($("monthFilter").value || undefined);
+    updateFilterDot();
+    renderEstimate();
+  }
+
   function updateFilterDot() {
     const dot = $("filterActiveDot");
     if (!dot) return;
@@ -2318,9 +2335,7 @@ const DATA = (function () {
     if (hub) hub.scrollIntoView({ block: "start", behavior: "smooth" });
   });
   $("estimateVat").addEventListener("change", function (event) {
-    estimate.includeVat = event.target.checked;
-    saveEstimate(storageOrNull(), estimate);
-    renderEstimate();
+    applyVatIncluded(event.target.checked);
   });
   $("estimateClear").addEventListener("click", function () {
     estimate.quantities.clear();
@@ -2433,13 +2448,7 @@ const DATA = (function () {
     syncUrl(true);
   });
   $("vatToggle").addEventListener("click", function () {
-    state.vatIncluded = !state.vatIncluded;
-    saveVatIncluded(storageOrNull(), state.vatIncluded);
-    renderVatState();
-    renderTable(false);
-    renderRecent();
-    renderMonthly($("monthFilter").value || undefined);
-    updateFilterDot();
+    applyVatIncluded(!state.vatIncluded);
   });
   $("resetFilters").addEventListener("click", resetFilters);
   $("chartClose").addEventListener("click", closeDialog);
