@@ -311,6 +311,83 @@ const DATA = (function () {
     return result;
   }
 
+  function renderEstimateRow(line, index) {
+    const row = document.createElement("li");
+    row.className = "estimate-row";
+    const info = document.createElement("div");
+    info.className = "estimate-info";
+    const category = makeSpan(line.item ? line.item.category : "미확인 상품", "small");
+    const name = document.createElement("strong");
+    name.textContent = line.item ? line.item.name : line.key;
+    const detail = makeSpan(
+      line.available ? "상품 1개 " + won(line.price) : "종료·미확인 상품 · 합계에서 제외",
+      "small"
+    );
+    info.append(category, name, detail);
+    const controls = document.createElement("div");
+    controls.className = "estimate-quantity";
+    function changeQuantity(quantity) {
+      const valid = validQuantity(quantity);
+      if (valid !== null) estimate.quantities.set(line.key, valid);
+      saveEstimate(storageOrNull(), estimate);
+      renderEstimate();
+    }
+    function button(text, label, action, id) {
+      const node = document.createElement("button");
+      node.type = "button";
+      node.textContent = text;
+      node.setAttribute("aria-label", name.textContent + " " + label);
+      node.id = id;
+      node.addEventListener("click", action);
+      return node;
+    }
+    const minus = button("−", "수량 줄이기", function () { changeQuantity(line.quantity - 1); }, "estimateMinus" + index);
+    minus.disabled = !line.available || line.quantity <= 1;
+    const quantity = document.createElement("input");
+    quantity.type = "number";
+    quantity.inputMode = "numeric";
+    quantity.min = "1";
+    quantity.max = String(MAX_QUANTITY);
+    quantity.step = "1";
+    quantity.value = String(line.quantity);
+    quantity.id = "estimateQty" + index;
+    quantity.setAttribute("aria-label", name.textContent + " 상품 수량");
+    quantity.disabled = !line.available;
+    quantity.addEventListener("input", function () {
+      const value = validQuantity(quantity.value);
+      if (value === null) {
+        if (quantity.value !== "") quantity.value = String(line.quantity);
+        return;
+      }
+      line.quantity = value;
+      estimate.quantities.set(line.key, value);
+      saveEstimate(storageOrNull(), estimate);
+      renderEstimateTotals();
+      total.textContent = won(line.price * value);
+      minus.disabled = value <= 1;
+      plus.disabled = value >= MAX_QUANTITY;
+      updateEstimateChart();
+    });
+    quantity.addEventListener("blur", function () {
+      quantity.value = String(line.quantity);
+    });
+    const plus = button("+", "수량 늘리기", function () { changeQuantity(line.quantity + 1); }, "estimatePlus" + index);
+    plus.disabled = !line.available || line.quantity >= MAX_QUANTITY;
+    controls.append(minus, quantity, plus);
+    const total = document.createElement("strong");
+    total.className = "estimate-line-total";
+    total.textContent = line.available ? won(line.lineTotal) : "합계 제외";
+    const remove = button("삭제", "계산에서 삭제", function () {
+      estimate.quantities.delete(line.key);
+      saveEstimate(storageOrNull(), estimate);
+      renderEstimate();
+      $("estimateSummary").focus({ preventScroll: true });
+    }, "estimateRemove" + index);
+    remove.className = "link-btn";
+    row.append(info, controls, total, remove);
+    return row;
+  }
+
   function renderEstimate() {
     const focusedId = document.activeElement && document.activeElement.id;
     const result = renderEstimateTotals();
@@ -323,81 +400,7 @@ const DATA = (function () {
       list.appendChild(empty);
     }
     result.lines.forEach(function (line, index) {
-      const row = document.createElement("li");
-      row.className = "estimate-row";
-      const info = document.createElement("div");
-      info.className = "estimate-info";
-      const category = document.createElement("span");
-      category.className = "small";
-      category.textContent = line.item ? line.item.category : "미확인 상품";
-      const name = document.createElement("strong");
-      name.textContent = line.item ? line.item.name : line.key;
-      const detail = document.createElement("span");
-      detail.className = "small";
-      detail.textContent = line.available ? "상품 1개 " + won(line.price) : "종료·미확인 상품 · 합계에서 제외";
-      info.append(category, name, detail);
-      const controls = document.createElement("div");
-      controls.className = "estimate-quantity";
-      function changeQuantity(quantity) {
-        const valid = validQuantity(quantity);
-        if (valid !== null) estimate.quantities.set(line.key, valid);
-        saveEstimate(storageOrNull(), estimate);
-        renderEstimate();
-      }
-      function button(text, label, action, id) {
-        const node = document.createElement("button");
-        node.type = "button";
-        node.textContent = text;
-        node.setAttribute("aria-label", name.textContent + " " + label);
-        node.id = id;
-        node.addEventListener("click", action);
-        return node;
-      }
-      const minus = button("−", "수량 줄이기", function () { changeQuantity(line.quantity - 1); }, "estimateMinus" + index);
-      minus.disabled = !line.available || line.quantity <= 1;
-      const quantity = document.createElement("input");
-      quantity.type = "number";
-      quantity.inputMode = "numeric";
-      quantity.min = "1";
-      quantity.max = String(MAX_QUANTITY);
-      quantity.step = "1";
-      quantity.value = String(line.quantity);
-      quantity.id = "estimateQty" + index;
-      quantity.setAttribute("aria-label", name.textContent + " 상품 수량");
-      quantity.disabled = !line.available;
-      quantity.addEventListener("input", function () {
-        const value = validQuantity(quantity.value);
-        if (value === null) {
-          if (quantity.value !== "") quantity.value = String(line.quantity);
-          return;
-        }
-        line.quantity = value;
-        estimate.quantities.set(line.key, value);
-        saveEstimate(storageOrNull(), estimate);
-        renderEstimateTotals();
-        total.textContent = won(line.price * value);
-        minus.disabled = value <= 1;
-        plus.disabled = value >= MAX_QUANTITY;
-        updateEstimateChart();
-      });
-      quantity.addEventListener("blur", function () {
-        quantity.value = String(line.quantity);
-      });
-      const plus = button("+", "수량 늘리기", function () { changeQuantity(line.quantity + 1); }, "estimatePlus" + index);
-      plus.disabled = !line.available || line.quantity >= MAX_QUANTITY;
-      controls.append(minus, quantity, plus);
-      const total = document.createElement("strong");
-      total.className = "estimate-line-total";
-      total.textContent = line.available ? won(line.lineTotal) : "합계 제외";
-      const remove = button("삭제", "계산에서 삭제", function () {
-        estimate.quantities.delete(line.key);
-        saveEstimate(storageOrNull(), estimate);
-        renderEstimate();
-        $("estimateSummary").focus({ preventScroll: true });
-      }, "estimateRemove" + index);
-      remove.className = "link-btn";
-      row.append(info, controls, total, remove);
-      list.appendChild(row);
+      list.appendChild(renderEstimateRow(line, index));
     });
     updateEstimateChart();
     if (focusedId && $(focusedId) && !$(focusedId).disabled) $(focusedId).focus({ preventScroll: true });
@@ -696,8 +699,24 @@ const DATA = (function () {
     return null;
   }
 
+  function lastPoint(item) {
+    return item.points[item.points.length - 1];
+  }
+
   function currentPrice(item) {
-    return item.points[item.points.length - 1][1];
+    return lastPoint(item)[1];
+  }
+
+  function priceValues(item) {
+    return item.points.map(function (point) { return point[1]; });
+  }
+
+  function minMax(values) {
+    return { min: Math.min.apply(null, values), max: Math.max.apply(null, values) };
+  }
+
+  function priceRange(item) {
+    return minMax(priceValues(item));
   }
 
   function cutoff30() {
@@ -711,7 +730,7 @@ const DATA = (function () {
     const cutoff = cutoff30();
     const points = cutoff ? item.points.filter(function (p) { return p[0] >= cutoff; }) : item.points;
     if (!points.length) return null;
-    return Math.min.apply(null, points.map(function (p) { return p[1]; }));
+    return minMax(points.map(function (p) { return p[1]; })).min;
   }
 
   function isLow30(item) {
@@ -719,12 +738,10 @@ const DATA = (function () {
     const cutoff = cutoff30();
     const points = item.points.filter(function (p) { return p[0] >= cutoff; });
     if (points.length < 2) return false;
-    const prices = points.map(function (p) { return p[1]; });
-    const min = Math.min.apply(null, prices);
-    const max = Math.max.apply(null, prices);
+    const range = minMax(points.map(function (p) { return p[1]; }));
     // 가격이 한 번도 변하지 않았으면 '최저' 배지를 붙이지 않는다.
-    if (max <= min) return false;
-    return currentPrice(item) <= min;
+    if (range.max <= range.min) return false;
+    return currentPrice(item) <= range.min;
   }
 
   function discountRate(item) {
@@ -770,9 +787,9 @@ const DATA = (function () {
     const color = trendColor(item);
     svg.style.color = color;
     const points = item.points;
-    const values = points.map((p) => p[1]);
-    const min = Math.min.apply(null, values);
-    const max = Math.max.apply(null, values);
+    const range = priceRange(item);
+    const min = range.min;
+    const max = range.max;
     const span = max - min;
     const step = points.length > 1 ? (W - pad * 2) / (points.length - 1) : 0;
     const coords = points.map((p, i) => [
@@ -1201,106 +1218,108 @@ const DATA = (function () {
     return cell;
   }
 
+  function makeSpan(text, className, title) {
+    const node = document.createElement("span");
+    node.className = className;
+    node.textContent = text;
+    if (title) node.title = title;
+    return node;
+  }
+
+  function makeBadge(text, modifier, title) {
+    return makeSpan(text, "badge" + (modifier ? " " + modifier : ""), title);
+  }
+
+  function makeExtra(text, modifier) {
+    return makeSpan(text, "event-extra" + (modifier ? " " + modifier : ""));
+  }
+
+  function buildCategoryCell(item) {
+    const cell = document.createElement("td");
+    const chip = makeSpan(item.category || "기타", "chip");
+    chip.title = item.category;
+    cell.appendChild(chip);
+    return cell;
+  }
+
+  function buildNameCell(item) {
+    const cell = document.createElement("td");
+    cell.appendChild(makeSpan(item.name, "name-text"));
+    if (item.active && item.returned) {
+      cell.appendChild(makeBadge(
+        "재등장 · " + mmdd(item.returned.date),
+        "returned",
+        returnedPriceText(item.returned)
+      ));
+    }
+    if (!item.active) cell.appendChild(makeBadge("종료"));
+    return cell;
+  }
+
+  function buildPriceCell(item, range) {
+    const cur = currentPrice(item);
+    const cell = td(displayWon(cur), "num price");
+    if (!item.active) cell.title = "마지막으로 확인된 가격";
+
+    const hasRange = range.max > range.min;
+    const atl = item.all_time_low !== undefined ? item.all_time_low : range.min;
+    const isAtl = hasRange && item.points.length >= 2 && cur <= atl;
+
+    if (isAtl) {
+      cell.appendChild(makeBadge("역대 최저", "low", "수집 이래 가장 낮은 가격입니다."));
+    } else if (isLow30(item)) {
+      cell.appendChild(makeBadge("30일 최저", "low", "최근 30일 중 가장 낮은 가격입니다."));
+    }
+
+    const rate = item.discount_rate !== undefined ? item.discount_rate : discountRate(item);
+    if (rate !== null && rate > 0) {
+      const rateBadge = makeBadge(rate + "% 할인");
+      rateBadge.style.color = "var(--down)";
+      rateBadge.style.borderColor = "rgba(200, 51, 104, .3)";
+      cell.appendChild(rateBadge);
+    }
+
+    const unitText = unitPriceText(item);
+    if (unitText) cell.appendChild(makeSpan(unitText, "unit-price"));
+    return cell;
+  }
+
+  function buildDeltaCell(item) {
+    const change = latestChange(item);
+    const cell = td("", "num " + (change === null ? "flat" : change.delta < 0 ? "good" : "bad"));
+    if (change === null) {
+      cell.textContent = "—";
+    } else {
+      cell.appendChild(document.createTextNode(deltaText(item)));
+      cell.appendChild(makeSpan(" · " + mmdd(change.date), "small"));
+    }
+    return cell;
+  }
+
+  function buildRangeCell(range) {
+    return td(fmt(displayPrice(range.min)) + " / " + fmt(displayPrice(range.max)), "num small");
+  }
+
+  function buildSparkCell(item) {
+    const cell = document.createElement("td");
+    cell.className = "spark";
+    cell.appendChild(sparkline(item));
+    return cell;
+  }
+
   function renderRow(item) {
     const tr = document.createElement("tr");
     tr.className = "row";
     tr.tabIndex = 0;
     tr.setAttribute("aria-label", item.name + " 가격 추이 보기");
 
-    const catCell = document.createElement("td");
-    const chip = document.createElement("span");
-    chip.className = "chip";
-    chip.textContent = item.category || "기타";
-    chip.title = item.category;
-    catCell.appendChild(chip);
-
-    const nameCell = document.createElement("td");
-    const name = document.createElement("span");
-    name.className = "name-text";
-    name.textContent = item.name;
-    nameCell.appendChild(name);
-    if (item.active && item.returned) {
-      const badge = document.createElement("span");
-      badge.className = "badge returned";
-      badge.textContent = "재등장 · " + mmdd(item.returned.date);
-      badge.title = returnedPriceText(item.returned);
-      nameCell.appendChild(badge);
-    }
-    if (!item.active) {
-      const badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = "종료";
-      nameCell.appendChild(badge);
-    }
-
-    const priceCell = td(displayWon(currentPrice(item)), "num price");
-    if (!item.active) priceCell.title = "마지막으로 확인된 가격";
-
-    const cur = currentPrice(item);
-    const values = item.points.map(function (p) { return p[1]; });
-    const min = Math.min.apply(null, values);
-    const max = Math.max.apply(null, values);
-    const hasRange = max > min;
-
-    const atl = item.all_time_low !== undefined ? item.all_time_low : min;
-    const isAtl = hasRange && item.points.length >= 2 && cur <= atl;
-
-    if (isAtl) {
-      const atlBadge = document.createElement("span");
-      atlBadge.className = "badge low";
-      atlBadge.textContent = "역대 최저";
-      atlBadge.title = "수집 이래 가장 낮은 가격입니다.";
-      priceCell.appendChild(atlBadge);
-    } else if (isLow30(item)) {
-      const lowBadge = document.createElement("span");
-      lowBadge.className = "badge low";
-      lowBadge.textContent = "30일 최저";
-      lowBadge.title = "최근 30일 중 가장 낮은 가격입니다.";
-      priceCell.appendChild(lowBadge);
-    }
-
-    const rate = item.discount_rate !== undefined ? item.discount_rate : discountRate(item);
-    if (rate !== null && rate > 0) {
-      const rateBadge = document.createElement("span");
-      rateBadge.className = "badge";
-      rateBadge.textContent = rate + "% 할인";
-      rateBadge.style.color = "var(--down)";
-      rateBadge.style.borderColor = "rgba(200, 51, 104, .3)";
-      priceCell.appendChild(rateBadge);
-    }
-
-    const unitText = unitPriceText(item);
-    if (unitText) {
-      const unit = document.createElement("span");
-      unit.className = "unit-price";
-      unit.textContent = unitText;
-      priceCell.appendChild(unit);
-    }
-
-    const change = latestChange(item);
-    const deltaCell = td("", "num " + (change === null ? "flat" : change.delta < 0 ? "good" : "bad"));
-    if (change === null) {
-      deltaCell.textContent = "—";
-    } else {
-      deltaCell.appendChild(document.createTextNode(deltaText(item)));
-      const when = document.createElement("span");
-      when.className = "small";
-      when.textContent = " · " + mmdd(change.date);
-      deltaCell.appendChild(when);
-    }
-
-    const rangeCell = td(fmt(displayPrice(min)) + " / " + fmt(displayPrice(max)), "num small");
-
-    const sparkCell = document.createElement("td");
-    sparkCell.className = "spark";
-    sparkCell.appendChild(sparkline(item));
-
-    tr.appendChild(catCell);
-    tr.appendChild(nameCell);
-    tr.appendChild(priceCell);
-    tr.appendChild(deltaCell);
-    tr.appendChild(rangeCell);
-    tr.appendChild(sparkCell);
+    const range = priceRange(item);
+    tr.appendChild(buildCategoryCell(item));
+    tr.appendChild(buildNameCell(item));
+    tr.appendChild(buildPriceCell(item, range));
+    tr.appendChild(buildDeltaCell(item));
+    tr.appendChild(buildRangeCell(range));
+    tr.appendChild(buildSparkCell(item));
 
     tr.addEventListener("click", function () { openChart(item); });
     tr.addEventListener("keydown", function (event) {
@@ -1312,135 +1331,122 @@ const DATA = (function () {
     return tr;
   }
 
+  function buildEventBanner(category) {
+    const label = category || "이벤트";
+    const banner = document.createElement("div");
+    banner.className = "event-banner";
+    let bannerFile = "";
+    if (label.includes("첫방문")) bannerFile = "assets/first-visit-banner.jpg";
+    else if (label.includes("이달의 단독")) bannerFile = "assets/monthly-banner.jpg";
+    if (bannerFile) {
+      const img = document.createElement("img");
+      img.src = bannerFile;
+      img.alt = label + " 이벤트 배너";
+      img.loading = "lazy";
+      img.decoding = "async";
+      banner.appendChild(img);
+    } else {
+      banner.classList.add("generic");
+      const prefix = makeSpan("LIMITED EVENT", "");
+      const title = document.createElement("h3");
+      title.className = "event-banner-title";
+      title.textContent = label;
+      banner.append(prefix, title);
+    }
+    return banner;
+  }
+
+  function buildEventLine(item, compact) {
+    const cur = currentPrice(item);
+    const line = document.createElement("button");
+    line.type = "button";
+    line.className = "event-line";
+    line.setAttribute("aria-label", item.name + " 가격 추이 보기");
+    const top = document.createElement("span");
+    top.className = "event-line-top";
+    const prices = document.createElement("span");
+    prices.className = "event-prices";
+    const listPrice = makeSpan("", "event-list-price");
+    listPrice.textContent = item.list_price > cur ? displayWon(item.list_price) : "";
+    const salePrice = makeSpan(displayWon(cur), "event-sale-price");
+    prices.append(listPrice, salePrice);
+    const name = document.createElement("span");
+    name.className = "event-name";
+    const openHint = makeSpan("↗", "event-open");
+    openHint.setAttribute("aria-hidden", "true");
+    name.append(makeSpan(item.name, "event-name-text"), openHint);
+    if (compact) {
+      top.append(makeSpan(item.category || "이벤트", "event-category"), prices);
+      line.append(top, name);
+    } else {
+      // 그룹 카드에서는 배너에 카테고리가 이미 있으므로 시술명을 제목 줄로 올린다.
+      top.append(name, prices);
+      line.appendChild(top);
+    }
+    if (item.active && item.returned) {
+      line.appendChild(makeExtra(
+        "재등장 · " + mmdd(item.returned.date) + " · " + returnedPriceText(item.returned),
+        "returned"
+      ));
+    }
+    if (!item.active || isLow30(item)) {
+      line.appendChild(makeExtra(item.active ? "30일 최저" : "종료된 이벤트 · 마지막 확인가"));
+    }
+    const unitText = unitPriceText(item);
+    if (unitText) line.appendChild(makeExtra(unitText, "unit"));
+    line.addEventListener("click", function () { openChart(item); });
+    return line;
+  }
+
+  function buildMoreToggle(category, lines) {
+    if (lines.length <= 2) return null;
+    const initiallyExpanded = expandedCategories.has(category);
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "event-more";
+    const chevron = makeSpan(initiallyExpanded ? "⌃" : "⌄", "");
+    lines.slice(2).forEach(function (line) { line.hidden = !initiallyExpanded; });
+    more.append(initiallyExpanded ? "접기 " : "펼치기 ", chevron);
+    more.setAttribute("aria-expanded", String(initiallyExpanded));
+    more.addEventListener("click", function () {
+      const expanded = more.getAttribute("aria-expanded") === "true";
+      lines.slice(2).forEach(function (line) { line.hidden = expanded; });
+      if (expanded) expandedCategories.delete(category);
+      else expandedCategories.add(category);
+      more.setAttribute("aria-expanded", String(!expanded));
+      more.firstChild.textContent = expanded ? "펼치기 " : "접기 ";
+      chevron.textContent = expanded ? "⌄" : "⌃";
+      updateExpandAllButton();
+    });
+    return more;
+  }
+
+  function buildCompactFoot(item) {
+    const foot = document.createElement("div");
+    foot.className = "event-compact-foot";
+    const rate = discountRate(item);
+    if (rate !== null) foot.appendChild(makeSpan(rate + "% 할인", "event-compact-rate"));
+    foot.appendChild(sparkline(item));
+    return foot;
+  }
+
   function renderEventCard(category, entries, options) {
     const compact = !!(options && options.compact);
     const card = document.createElement("article");
     card.className = "event-card" + (compact ? " compact" : "");
     card.setAttribute("aria-label", (category || "이벤트") + " 가격 목록");
-    if (!compact) {
-      const banner = document.createElement("div");
-      banner.className = "event-banner";
-      let bannerFile = "";
-      if (category.includes("첫방문")) bannerFile = "assets/first-visit-banner.jpg";
-      else if (category.includes("이달의 단독")) bannerFile = "assets/monthly-banner.jpg";
-      if (bannerFile) {
-        const img = document.createElement("img");
-        img.src = bannerFile;
-        img.alt = category + " 이벤트 배너";
-        img.loading = "lazy";
-        img.decoding = "async";
-        banner.appendChild(img);
-      } else {
-        banner.classList.add("generic");
-        const label = document.createElement("span");
-        label.textContent = "LIMITED EVENT";
-        const title = document.createElement("h3");
-        title.className = "event-banner-title";
-        title.textContent = category || "이벤트";
-        banner.append(label, title);
-      }
-      card.appendChild(banner);
-    }
+    if (!compact) card.appendChild(buildEventBanner(category));
 
     const body = document.createElement("div");
     body.className = "event-card-body";
-    const lines = [];
-    for (const item of entries) {
-      const line = document.createElement("button");
-      line.type = "button";
-      line.className = "event-line";
-      line.setAttribute("aria-label", item.name + " 가격 추이 보기");
-      const top = document.createElement("span");
-      top.className = "event-line-top";
-      const prices = document.createElement("span");
-      prices.className = "event-prices";
-      const listPrice = document.createElement("span");
-      listPrice.className = "event-list-price";
-      listPrice.textContent = item.list_price > currentPrice(item) ? displayWon(item.list_price) : "";
-      const salePrice = document.createElement("span");
-      salePrice.className = "event-sale-price";
-      salePrice.textContent = displayWon(currentPrice(item));
-      prices.append(listPrice, salePrice);
-      const name = document.createElement("span");
-      name.className = "event-name";
-      const nameText = document.createElement("span");
-      nameText.className = "event-name-text";
-      nameText.textContent = item.name;
-      const openHint = document.createElement("span");
-      openHint.className = "event-open";
-      openHint.setAttribute("aria-hidden", "true");
-      openHint.textContent = "↗";
-      name.append(nameText, openHint);
-      if (compact) {
-        const categoryLabel = document.createElement("span");
-        categoryLabel.className = "event-category";
-        categoryLabel.textContent = item.category || "이벤트";
-        top.append(categoryLabel, prices);
-        line.append(top, name);
-      } else {
-        // 그룹 카드에서는 배너에 카테고리가 이미 있으므로 시술명을 제목 줄로 올린다.
-        top.append(name, prices);
-        line.appendChild(top);
-      }
-      if (item.active && item.returned) {
-        const returned = document.createElement("span");
-        returned.className = "event-extra returned";
-        returned.textContent = "재등장 · " + mmdd(item.returned.date) + " · " + returnedPriceText(item.returned);
-        line.appendChild(returned);
-      }
-      if (!item.active || isLow30(item)) {
-        const extra = document.createElement("span");
-        extra.className = "event-extra";
-        extra.textContent = item.active ? "30일 최저" : "종료된 이벤트 · 마지막 확인가";
-        line.appendChild(extra);
-      }
-      const unitText = unitPriceText(item);
-      if (unitText) {
-        const unit = document.createElement("span");
-        unit.className = "event-extra unit";
-        unit.textContent = unitText;
-        line.appendChild(unit);
-      }
-      line.addEventListener("click", function () { openChart(item); });
-      lines.push(line);
+    const lines = entries.map(function (item) {
+      const line = buildEventLine(item, compact);
       body.appendChild(line);
-    }
-    if (entries.length > 2) {
-      const more = document.createElement("button");
-      more.type = "button";
-      more.className = "event-more";
-      const label = document.createElement("span");
-      label.textContent = "⌄";
-      const initiallyExpanded = expandedCategories.has(category);
-      lines.slice(2).forEach(function (line) { line.hidden = !initiallyExpanded; });
-      more.append(initiallyExpanded ? "접기 " : "펼치기 ", label);
-      label.textContent = initiallyExpanded ? "⌃" : "⌄";
-      more.setAttribute("aria-expanded", String(initiallyExpanded));
-      more.addEventListener("click", function () {
-        const expanded = more.getAttribute("aria-expanded") === "true";
-        lines.slice(2).forEach(function (line) { line.hidden = expanded; });
-        if (expanded) expandedCategories.delete(category);
-        else expandedCategories.add(category);
-        more.setAttribute("aria-expanded", String(!expanded));
-        more.firstChild.textContent = expanded ? "펼치기 " : "접기 ";
-        label.textContent = expanded ? "⌄" : "⌃";
-        updateExpandAllButton();
-      });
-      body.appendChild(more);
-    }
-    if (compact) {
-      const foot = document.createElement("div");
-      foot.className = "event-compact-foot";
-      const rate = discountRate(entries[0]);
-      if (rate !== null) {
-        const badge = document.createElement("span");
-        badge.className = "event-compact-rate";
-        badge.textContent = rate + "% 할인";
-        foot.appendChild(badge);
-      }
-      foot.appendChild(sparkline(entries[0]));
-      body.appendChild(foot);
-    }
+      return line;
+    });
+    const more = buildMoreToggle(category, lines);
+    if (more) body.appendChild(more);
+    if (compact) body.appendChild(buildCompactFoot(entries[0]));
     card.appendChild(body);
     return card;
   }
@@ -1836,62 +1842,28 @@ const DATA = (function () {
 
   let chartInstance = null;
 
-  function drawChart(item) {
-    const canvas = $("chartCanvas");
-    if (!canvas) return;
-    const points = item.points;
-    const labels = points.map(function (p) { return p[0]; });
-    const values = points.map(function (p) { return p[1]; });
-    const shown = values.map(displayPrice);
-    const first = points[0];
-    const last = points[points.length - 1];
-    const rawMin = Math.min.apply(null, values);
-    const rawMax = Math.max.apply(null, values);
-    const shownMin = Math.min.apply(null, shown);
-    const shownMax = Math.max.apply(null, shown);
-    const flat = shownMin === shownMax;
-
-    canvas.setAttribute("aria-label",
-      item.name + " 가격 추이: " + first[0] + " " + displayWon(first[1]) + "에서 " +
-      last[0] + " " + displayWon(last[1]) + ", 최저 " + displayWon(rawMin) + ", 최고 " + displayWon(rawMax));
-
-    if (chartInstance) {
-      chartInstance.destroy();
-      chartInstance = null;
-    }
-    if (typeof Chart === "undefined") {
-      // 차트 라이브러리를 못 불러와도 아래 가격 표는 그대로 볼 수 있게 한다.
-      canvas.hidden = true;
-      return;
-    }
-    canvas.hidden = false;
-
-    const compact = window.innerWidth < 620;
-    const color = trendColor(item);
-    const flatColor = cssVar("--flat") || COLORS.flat;
-    const palette = {
-      muted: cssVar("--muted") || "#807a7d",
-      panel: cssVar("--panel") || "#ffffff",
-      down: cssVar("--down") || COLORS.down,
-      up: cssVar("--up") || COLORS.up
-    };
-
-    let min = shownMin;
-    let max = shownMax;
+  function chartBounds(shown, flat, compact) {
+    const range = minMax(shown);
+    let min = range.min;
+    let max = range.max;
     if (flat) {
-      const margin = Math.max(1000, Math.round(shownMax * 0.06));
-      min = Math.max(0, shownMin - margin);
-      max = shownMax + margin;
+      const margin = Math.max(1000, Math.round(range.max * 0.06));
+      min = Math.max(0, range.min - margin);
+      max = range.max + margin;
     } else {
-      const margin = (shownMax - shownMin) * 0.16;
-      min = Math.max(0, shownMin - margin);
-      max = shownMax + margin;
+      const margin = (range.max - range.min) * 0.16;
+      min = Math.max(0, range.min - margin);
+      max = range.max + margin;
     }
     const step = niceStep(max - min || 1, compact ? 4 : 5);
     min = Math.max(0, Math.floor(min / step) * step);
     max = Math.ceil(max / step) * step;
     if (max <= min) max = min + step;
+    return { min: min, max: max, step: step };
+  }
 
+  function buildChartDatasets(item, shown, color, palette, flat) {
+    const flatColor = cssVar("--flat") || COLORS.flat;
     const datasets = [{
       label: item.name,
       data: shown,
@@ -1945,7 +1917,7 @@ const DATA = (function () {
           refColor: palette.down
         });
       }
-      if (item.avg_price !== undefined && points.length > 1) {
+      if (item.avg_price !== undefined && item.points.length > 1) {
         datasets.push({
           label: "평균",
           data: shown.map(function () { return displayPrice(item.avg_price); }),
@@ -1961,80 +1933,142 @@ const DATA = (function () {
         });
       }
     }
+    return datasets;
+  }
+
+  function chartScales(palette, compact, bounds) {
+    return {
+      x: {
+        grid: { display: false },
+        border: { display: false },
+        ticks: {
+          color: palette.muted,
+          font: { size: 10.5 },
+          maxRotation: 0,
+          autoSkip: true,
+          maxTicksLimit: compact ? 4 : 6,
+          callback: function (value) {
+            return mmdd(this.getLabelForValue(value));
+          }
+        }
+      },
+      y: {
+        min: bounds.min,
+        max: bounds.max,
+        grid: { color: "rgba(128, 122, 125, .16)", drawTicks: false },
+        border: { display: false },
+        ticks: {
+          stepSize: bounds.step,
+          padding: 6,
+          color: palette.muted,
+          font: { size: 10.5 },
+          callback: function (value) { return axisLabel(value); }
+        }
+      }
+    };
+  }
+
+  function chartTooltip(shown) {
+    return {
+      filter: function (entry) { return entry.datasetIndex === 0; },
+      backgroundColor: "rgba(36, 33, 36, .94)",
+      titleColor: "#f4eef1",
+      bodyColor: "#ffffff",
+      titleFont: { size: 11, weight: "600" },
+      bodyFont: { size: 13, weight: "700" },
+      padding: 10,
+      cornerRadius: 10,
+      caretSize: 6,
+      caretPadding: 8,
+      displayColors: false,
+      titleMarginBottom: 3,
+      callbacks: {
+        title: function (entries) { return entries.length ? entries[0].label : ""; },
+        label: function (entry) { return won(entry.parsed.y); },
+        afterLabel: function (entry) {
+          const index = entry.dataIndex;
+          if (index === 0) return "첫 기록";
+          const prev = shown[index - 1];
+          const diff = entry.parsed.y - prev;
+          if (diff === 0) return "변동 없음";
+          const pct = prev ? (Math.abs(diff) / prev) * 100 : 0;
+          return (diff > 0 ? "▲ +" : "▼ -") + fmt(Math.abs(diff)) + "원 (" +
+            (diff > 0 ? "+" : "-") + pct.toFixed(1) + "%)";
+        }
+      }
+    };
+  }
+
+  function buildChartOptions(context) {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      resizeDelay: 120,
+      interaction: { mode: "index", intersect: false },
+      layout: { padding: { top: 26, right: 6, bottom: 2 } },
+      animation: prefersReducedMotion() ? false : { duration: 520, easing: "easeOutQuart" },
+      scales: chartScales(context.palette, context.compact, context.bounds),
+      plugins: {
+        legend: { display: false },
+        tooltip: chartTooltip(context.shown),
+        lastValuePill: { text: won(context.shown[context.shown.length - 1]), color: context.color },
+        flatNotice: { text: context.flat ? "수집 이래 가격 변동 없음 · " + context.pointCount + "일 기록" : "" }
+      }
+    };
+  }
+
+  function drawChart(item) {
+    const canvas = $("chartCanvas");
+    if (!canvas) return;
+    const points = item.points;
+    const labels = points.map(function (p) { return p[0]; });
+    const values = priceValues(item);
+    const shown = values.map(displayPrice);
+    const first = points[0];
+    const last = lastPoint(item);
+    const rawRange = minMax(values);
+    const shownRange = minMax(shown);
+    const flat = shownRange.min === shownRange.max;
+
+    canvas.setAttribute("aria-label",
+      item.name + " 가격 추이: " + first[0] + " " + displayWon(first[1]) + "에서 " +
+      last[0] + " " + displayWon(last[1]) + ", 최저 " + displayWon(rawRange.min) + ", 최고 " + displayWon(rawRange.max));
+
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+    if (typeof Chart === "undefined") {
+      // 차트 라이브러리를 못 불러와도 아래 가격 표는 그대로 볼 수 있게 한다.
+      canvas.hidden = true;
+      return;
+    }
+    canvas.hidden = false;
+
+    const compact = window.innerWidth < 620;
+    const color = trendColor(item);
+    const palette = {
+      muted: cssVar("--muted") || "#807a7d",
+      panel: cssVar("--panel") || "#ffffff",
+      down: cssVar("--down") || COLORS.down,
+      up: cssVar("--up") || COLORS.up
+    };
+    const bounds = chartBounds(shown, flat, compact);
+
+    const datasets = buildChartDatasets(item, shown, color, palette, flat);
 
     chartInstance = new Chart(canvas.getContext("2d"), {
       type: "line",
       data: { labels: labels, datasets: datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        resizeDelay: 120,
-        interaction: { mode: "index", intersect: false },
-        layout: { padding: { top: 26, right: 6, bottom: 2 } },
-        animation: prefersReducedMotion() ? false : { duration: 520, easing: "easeOutQuart" },
-        scales: {
-          x: {
-            grid: { display: false },
-            border: { display: false },
-            ticks: {
-              color: palette.muted,
-              font: { size: 10.5 },
-              maxRotation: 0,
-              autoSkip: true,
-              maxTicksLimit: compact ? 4 : 6,
-              callback: function (value) {
-                return mmdd(this.getLabelForValue(value));
-              }
-            }
-          },
-          y: {
-            min: min,
-            max: max,
-            grid: { color: "rgba(128, 122, 125, .16)", drawTicks: false },
-            border: { display: false },
-            ticks: {
-              stepSize: step,
-              padding: 6,
-              color: palette.muted,
-              font: { size: 10.5 },
-              callback: function (value) { return axisLabel(value); }
-            }
-          }
-        },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            filter: function (entry) { return entry.datasetIndex === 0; },
-            backgroundColor: "rgba(36, 33, 36, .94)",
-            titleColor: "#f4eef1",
-            bodyColor: "#ffffff",
-            titleFont: { size: 11, weight: "600" },
-            bodyFont: { size: 13, weight: "700" },
-            padding: 10,
-            cornerRadius: 10,
-            caretSize: 6,
-            caretPadding: 8,
-            displayColors: false,
-            titleMarginBottom: 3,
-            callbacks: {
-              title: function (entries) { return entries.length ? entries[0].label : ""; },
-              label: function (entry) { return won(entry.parsed.y); },
-              afterLabel: function (entry) {
-                const index = entry.dataIndex;
-                if (index === 0) return "첫 기록";
-                const prev = shown[index - 1];
-                const diff = entry.parsed.y - prev;
-                if (diff === 0) return "변동 없음";
-                const pct = prev ? (Math.abs(diff) / prev) * 100 : 0;
-                return (diff > 0 ? "▲ +" : "▼ -") + fmt(Math.abs(diff)) + "원 (" +
-                  (diff > 0 ? "+" : "-") + pct.toFixed(1) + "%)";
-              }
-            }
-          },
-          lastValuePill: { text: won(shown[shown.length - 1]), color: color },
-          flatNotice: { text: flat ? "수집 이래 가격 변동 없음 · " + points.length + "일 기록" : "" }
-        }
-      },
+      options: buildChartOptions({
+        palette: palette,
+        compact: compact,
+        bounds: bounds,
+        shown: shown,
+        color: color,
+        flat: flat,
+        pointCount: points.length
+      }),
       plugins: [lastValuePill, crosshair, refLabels, flatNotice]
     });
   }
@@ -2306,7 +2340,12 @@ const DATA = (function () {
         matchesQuery,
         eventsForKind,
         discountRate,
+        lastPoint,
         currentPrice,
+        priceValues,
+        minMax,
+        priceRange,
+        chartBounds,
         latestChange,
         overallDelta,
         min30,

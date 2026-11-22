@@ -218,6 +218,33 @@ test("currentPrice() - 가장 최근 날짜의 가격을 반환한다", () => {
   assert.equal(app.currentPrice(target), 27000);
 });
 
+test("priceValues()/minMax()/priceRange() - 가격 목록과 최저·최고를 계산한다", () => {
+  const target = {
+    points: [
+      ["2026-11-13", 30000],
+      ["2026-11-14", 25000],
+      ["2026-11-15", 27000]
+    ]
+  };
+  assert.deepEqual(app.priceValues(target), [30000, 25000, 27000]);
+  assert.deepEqual(app.minMax([3, 1, 2]), { min: 1, max: 3 });
+  assert.deepEqual(app.priceRange(target), { min: 25000, max: 30000 });
+  assert.deepEqual(app.lastPoint(target), ["2026-11-15", 27000]);
+});
+
+test("chartBounds() - 축 범위가 모든 가격을 포함하고 0 이상이다", () => {
+  const bounds = app.chartBounds([15000, 20000, 17000], false, false);
+  assert.ok(bounds.min >= 0);
+  assert.ok(bounds.min <= 15000);
+  assert.ok(bounds.max >= 20000);
+  assert.ok(bounds.step > 0);
+
+  const flat = app.chartBounds([29000, 29000], true, false);
+  assert.ok(flat.min >= 0);
+  assert.ok(flat.max > 29000);
+  assert.ok(flat.step > 0);
+});
+
 test("latestChange() - 가장 최근 가격 변동 시점과 차액을 계산한다", () => {
   const target = {
     points: [
