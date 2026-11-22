@@ -60,13 +60,13 @@
 
   <div class="summary-hub" id="summaryHub">
     <div class="summary-tabs" role="tablist" aria-label="요약 정보">
-      <button type="button" class="summary-tab active" id="tabRecent" role="tab" aria-selected="true" aria-controls="recentPanel">
+      <button type="button" class="summary-tab active" id="tabRecent" role="tab" aria-selected="true" aria-controls="recentPanel" tabindex="0">
         <span class="tab-icon">⚡</span> 최근 변동
       </button>
-      <button type="button" class="summary-tab" id="tabMonthly" role="tab" aria-selected="false" aria-controls="monthlyPanel">
+      <button type="button" class="summary-tab" id="tabMonthly" role="tab" aria-selected="false" aria-controls="monthlyPanel" tabindex="-1">
         <span class="tab-icon">📅</span> 월별 요약
       </button>
-      <button type="button" class="summary-tab" id="tabEstimate" role="tab" aria-selected="false" aria-controls="estimatePanel">
+      <button type="button" class="summary-tab" id="tabEstimate" role="tab" aria-selected="false" aria-controls="estimatePanel" tabindex="-1">
         <span class="tab-icon">🧾</span> 예상 결제액 <span class="tab-badge" id="tabEstimateBadge" hidden>0</span>
       </button>
       <button type="button" class="summary-toggle-btn" id="summaryCollapseBtn" aria-label="요약 접기/펼치기" title="요약 접기/펼치기">
@@ -86,7 +86,7 @@
         </details>
       </section>
 
-      <section class="recent monthly summary-panel" id="monthlyPanel" role="tabpanel" aria-labelledby="tabMonthly" aria-labelledby="monthlyTitle" hidden>
+      <section class="recent monthly summary-panel" id="monthlyPanel" role="tabpanel" aria-labelledby="tabMonthly" hidden>
         <div class="monthly-head">
           <h2 id="monthlyTitle">월별 가격 요약</h2>
           <select id="monthFilter" aria-label="요약할 월 선택"></select>
@@ -102,7 +102,7 @@
         </div>
       </section>
 
-      <section class="estimate summary-panel" id="estimatePanel" role="tabpanel" aria-labelledby="tabEstimate" aria-labelledby="estimateTitle" hidden>
+      <section class="estimate summary-panel" id="estimatePanel" role="tabpanel" aria-labelledby="tabEstimate" hidden>
         <details id="estimateDetails" open>
           <summary class="estimate-summary" id="estimateSummary">
             <span><strong id="estimateTitle">예상 결제액</strong><span class="small" id="estimateCount">시술 상세에서 계산에 담아 보세요.</span></span>

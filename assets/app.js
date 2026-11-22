@@ -2216,6 +2216,7 @@ const DATA = (function () {
       if (tabs[key].tab) {
         tabs[key].tab.classList.toggle("active", isTarget);
         tabs[key].tab.setAttribute("aria-selected", String(isTarget));
+        tabs[key].tab.tabIndex = isTarget ? 0 : -1;
       }
       if (tabs[key].panel) {
         tabs[key].panel.hidden = !isTarget;
@@ -2236,6 +2237,35 @@ const DATA = (function () {
     if (tabRecent) tabRecent.addEventListener("click", function () { setSummaryTab("recent"); });
     if (tabMonthly) tabMonthly.addEventListener("click", function () { setSummaryTab("monthly"); });
     if (tabEstimate) tabEstimate.addEventListener("click", function () { setSummaryTab("estimate"); });
+
+    const tablist = document.querySelector(".summary-tabs");
+    if (tablist) {
+      const tabKeys = ["recent", "monthly", "estimate"];
+      const tabButtons = [tabRecent, tabMonthly, tabEstimate].filter(Boolean);
+      tablist.addEventListener("keydown", function (event) {
+        const activeIndex = tabButtons.indexOf(document.activeElement);
+        if (activeIndex === -1) return;
+        let nextIndex = -1;
+        if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+          event.preventDefault();
+          nextIndex = (activeIndex + 1) % tabButtons.length;
+        } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+          event.preventDefault();
+          nextIndex = (activeIndex - 1 + tabButtons.length) % tabButtons.length;
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          nextIndex = 0;
+        } else if (event.key === "End") {
+          event.preventDefault();
+          nextIndex = tabButtons.length - 1;
+        }
+        if (nextIndex !== -1) {
+          tabButtons[nextIndex].focus();
+          setSummaryTab(tabKeys[nextIndex]);
+        }
+      });
+    }
+
     if (collapseBtn) {
       collapseBtn.addEventListener("click", function () {
         const content = $("summaryContent");
@@ -2247,6 +2277,18 @@ const DATA = (function () {
     }
   }
 
+  function closeFilterDrawer() {
+    const toggle = $("filterMoreToggle");
+    const drawer = $("filterDrawer");
+    if (!drawer || drawer.hidden) return;
+    drawer.hidden = true;
+    if (toggle) {
+      toggle.classList.remove("on");
+      toggle.setAttribute("aria-expanded", "false");
+    }
+    updateFilterDot();
+  }
+
   function initFilterDrawer() {
     const toggle = $("filterMoreToggle");
     const drawer = $("filterDrawer");
@@ -2256,6 +2298,22 @@ const DATA = (function () {
       toggle.classList.toggle("on", !drawer.hidden);
       toggle.setAttribute("aria-expanded", String(!drawer.hidden));
       updateFilterDot();
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !drawer.hidden) {
+        const dialog = $("chartDialog");
+        if (dialog && dialog.open) return;
+        closeFilterDrawer();
+        toggle.focus();
+      }
+    });
+
+    document.addEventListener("click", function (event) {
+      if (drawer.hidden) return;
+      if (!drawer.contains(event.target) && !toggle.contains(event.target)) {
+        closeFilterDrawer();
+      }
     });
   }
 
