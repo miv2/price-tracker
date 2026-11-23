@@ -1,6 +1,6 @@
 {
   "source_url": "https://www.swuni114.co.kr/",
-  "updated_at": "2026-11-23T16:54:21+09:00",
+  "updated_at": "2026-11-23T23:27:21+09:00",
   "count": 570,
   "items": [
     {
@@ -1052,30 +1052,6 @@
       "last_seen": "2026-11-23"
     },
     {
-      "category": "리제반",
-      "name": "리제반PN 1cc",
-      "list_price": 178000,
-      "sale_price": 99000,
-      "first_seen": "2026-11-13",
-      "last_seen": "2026-11-23"
-    },
-    {
-      "category": "리제반",
-      "name": "리제반PN 2cc",
-      "list_price": 250000,
-      "sale_price": 139000,
-      "first_seen": "2026-11-13",
-      "last_seen": "2026-11-23"
-    },
-    {
-      "category": "리제반",
-      "name": "리제반PN 6cc",
-      "list_price": 702000,
-      "sale_price": 390000,
-      "first_seen": "2026-11-13",
-      "last_seen": "2026-11-23"
-    },
-    {
       "category": "리쥬란 HB PLUS",
       "name": "리쥬란 HB PLUS 1cc",
       "list_price": 304000,
@@ -1257,6 +1233,30 @@
       "list_price": 270000,
       "sale_price": 150000,
       "first_seen": "2026-11-13",
+      "last_seen": "2026-11-23"
+    },
+    {
+      "category": "비타란",
+      "name": "비타란 1cc",
+      "list_price": 178000,
+      "sale_price": 99000,
+      "first_seen": "2026-11-23",
+      "last_seen": "2026-11-23"
+    },
+    {
+      "category": "비타란",
+      "name": "비타란 2cc",
+      "list_price": 250000,
+      "sale_price": 139000,
+      "first_seen": "2026-11-23",
+      "last_seen": "2026-11-23"
+    },
+    {
+      "category": "비타란",
+      "name": "비타란 6cc",
+      "list_price": 702000,
+      "sale_price": 390000,
+      "first_seen": "2026-11-23",
       "last_seen": "2026-11-23"
     },
     {
