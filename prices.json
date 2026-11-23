@@ -1,7 +1,7 @@
 {
   "source_url": "https://www.swuni114.co.kr/",
-  "updated_at": "2026-11-23T01:35:29+09:00",
-  "count": 565,
+  "updated_at": "2026-11-23T16:54:21+09:00",
+  "count": 570,
   "items": [
     {
       "category": "FCR 필링",
@@ -89,6 +89,46 @@
       "list_price": 2502000,
       "sale_price": 1390000,
       "first_seen": "2026-11-13",
+      "last_seen": "2026-11-23"
+    },
+    {
+      "category": "✨올타이트 리프팅",
+      "name": "[입고 파격 이벤트] 덴서티 300샷 + 올타이트 300샷 1회",
+      "list_price": 2320000,
+      "sale_price": 1290000,
+      "first_seen": "2026-11-23",
+      "last_seen": "2026-11-23"
+    },
+    {
+      "category": "✨올타이트 리프팅",
+      "name": "올타이트 400샷 (얼굴) 1회",
+      "list_price": 1242000,
+      "sale_price": 690000,
+      "first_seen": "2026-11-23",
+      "last_seen": "2026-11-23"
+    },
+    {
+      "category": "✨올타이트 리프팅",
+      "name": "올타이트 400샷 (얼굴) 3회",
+      "list_price": 3060000,
+      "sale_price": 1700000,
+      "first_seen": "2026-11-23",
+      "last_seen": "2026-11-23"
+    },
+    {
+      "category": "✨올타이트 리프팅",
+      "name": "올타이트 600샷 (얼굴 + 목) 1회",
+      "list_price": 1710000,
+      "sale_price": 950000,
+      "first_seen": "2026-11-23",
+      "last_seen": "2026-11-23"
+    },
+    {
+      "category": "✨올타이트 리프팅",
+      "name": "올타이트 600샷 (얼굴 + 목) 3회",
+      "list_price": 4050000,
+      "sale_price": 2250000,
+      "first_seen": "2026-11-23",
       "last_seen": "2026-11-23"
     },
     {
