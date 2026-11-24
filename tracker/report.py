@@ -133,21 +133,6 @@ def ensure_changes_file(path: Path) -> None:
     atomic_write_text(path, HEADER + "\n")
 
 
-def prepend_entry(path: Path, entry: str) -> None:
-    """새 변동 항목을 머리말 바로 아래(최신 순)에 넣는다."""
-    ensure_changes_file(path)
-    text = path.read_text(encoding="utf-8")
-    marker = text.find("\n## ")
-    entry = entry.strip() + "\n"
-    if marker == -1:
-        new_text = text.rstrip() + "\n\n" + entry
-    else:
-        head = text[:marker].rstrip()
-        rest = text[marker + 1 :]
-        new_text = head + "\n\n" + entry + "\n" + rest
-    atomic_write_text(path, new_text.rstrip() + "\n")
-
-
 def set_date_entry(path: Path, date: str, entry: str | None) -> None:
     """날짜별 요약을 교체한다. 변동이 사라지면 해당 날짜의 요약을 지운다."""
     ensure_changes_file(path)

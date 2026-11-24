@@ -25,7 +25,6 @@ from .util import atomic_write_text
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 TEMPLATE_PATH = TEMPLATE_DIR / "index.html"
-PAYLOAD_PLACEHOLDER = "__PAYLOAD__"
 ASSET_VERSION_PLACEHOLDER = "__ASSET_VERSION__"
 DATA_VERSION_PLACEHOLDER = "__DATA_VERSION__"
 SW_CACHE_PLACEHOLDER = "__CACHE_VERSION__"
@@ -183,7 +182,6 @@ def serialize_payload(payload: Payload) -> str:
 
 
 def render_html(
-    payload: Payload,
     template_path: Path = TEMPLATE_PATH,
     version: str = "",
     data_version: str = "",
@@ -199,11 +197,6 @@ def render_html(
     html = template.replace(ASSET_VERSION_PLACEHOLDER, version)
     if DATA_VERSION_PLACEHOLDER in html:
         html = html.replace(DATA_VERSION_PLACEHOLDER, data_version or "0")
-
-    # 하위 호환: 템플릿에 여전히 __PAYLOAD__ 자리가 남아있는 경우 인라인 치환
-    if PAYLOAD_PLACEHOLDER in html:
-        html = html.replace(PAYLOAD_PLACEHOLDER, serialize_payload(payload))
-
     return html
 
 
@@ -238,7 +231,7 @@ def write_graph(
     data_version = write_data(assets_dir, payload)
 
     version = asset_version(assets)
-    atomic_write_text(path, render_html(payload, template_path, version, data_version))
+    atomic_write_text(path, render_html(template_path, version, data_version))
     atomic_write_text(
         path.parent / SW_NAME,
         render_service_worker(template_path.parent, version, data_version),

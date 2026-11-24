@@ -1,17 +1,6 @@
-const DATA = (function () {
-  if (typeof window !== "undefined" && window.__PRICE_DATA__) {
-    return window.__PRICE_DATA__;
-  }
-  if (typeof document === "undefined") return { items: [] };
-  const node = document.getElementById("payload");
-  if (!node) return { items: [] };
-  try {
-    return JSON.parse(node.textContent);
-  } catch (error) {
-    console.error("가격 데이터를 읽지 못했습니다.", error);
-    return { items: [] };
-  }
-})();
+const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
+  ? window.__PRICE_DATA__
+  : { items: [] };
 
 (function () {
   "use strict";
@@ -34,6 +23,7 @@ const DATA = (function () {
   const EVENT_PERIOD = DATA.event_period || null;
   const changedIndexes = new Set((RECENT.items || []).map(function (change) { return change.index; }));
   const PAGE_SIZE = 40;
+  const EVENT_CARD_PREVIEW = 2;
   const FAVORITES_KEY = "priceTracker.favorites.v1";
   const ESTIMATE_KEY = "priceTracker.estimate.v1";
   const VAT_KEY = "priceTracker.vat.v1";
@@ -811,12 +801,8 @@ const DATA = (function () {
   }
 
   function renderStats() {
-    const dates = new Set();
-    for (const item of items) {
-      for (const p of item.points) dates.add(p[0]);
-    }
     $("statActive").textContent = fmt(DATA.active_count || 0) + "개";
-    $("statDays").textContent = fmt(dates.size) + "일";
+    $("statDays").textContent = fmt(DATA.days || 0) + "일";
     $("statLast").textContent = DATA.last_date ? mmdd(DATA.last_date) : "—";
     if (RECENT.baseline) {
       $("statChanges").textContent = "—";
@@ -1402,25 +1388,28 @@ const DATA = (function () {
       lines.push(line);
       body.appendChild(line);
     }
-    if (entries.length > 2) {
+    if (entries.length > EVENT_CARD_PREVIEW) {
       const more = document.createElement("button");
       more.type = "button";
       more.className = "event-more";
       const label = document.createElement("span");
-      label.textContent = "⌄";
-      const initiallyExpanded = expandedCategories.has(category);
-      lines.slice(2).forEach(function (line) { line.hidden = !initiallyExpanded; });
-      more.append(initiallyExpanded ? "접기 " : "펼치기 ", label);
-      label.textContent = initiallyExpanded ? "⌃" : "⌄";
-      more.setAttribute("aria-expanded", String(initiallyExpanded));
+      more.append(document.createTextNode(""), label);
+      const hiddenLines = lines.slice(EVENT_CARD_PREVIEW);
+      let expanded = expandedCategories.has(category);
+
+      function applyMoreState() {
+        hiddenLines.forEach(function (line) { line.hidden = !expanded; });
+        more.firstChild.textContent = expanded ? "접기 " : "펼치기 ";
+        label.textContent = expanded ? "⌃" : "⌄";
+        more.setAttribute("aria-expanded", String(expanded));
+      }
+
+      applyMoreState();
       more.addEventListener("click", function () {
-        const expanded = more.getAttribute("aria-expanded") === "true";
-        lines.slice(2).forEach(function (line) { line.hidden = expanded; });
-        if (expanded) expandedCategories.delete(category);
-        else expandedCategories.add(category);
-        more.setAttribute("aria-expanded", String(!expanded));
-        more.firstChild.textContent = expanded ? "펼치기 " : "접기 ";
-        label.textContent = expanded ? "⌄" : "⌃";
+        expanded = !expanded;
+        if (expanded) expandedCategories.add(category);
+        else expandedCategories.delete(category);
+        applyMoreState();
         updateExpandAllButton();
       });
       body.appendChild(more);
