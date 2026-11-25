@@ -53,14 +53,12 @@ def load_history(path: Path) -> list[PriceRow]:
     return rows
 
 
-def record_snapshot(path: Path, date: str, items: list[Item]) -> bool:
-    """그날의 스냅샷을 기록한다.
-
-    같은 날 다시 실행하면 그날 행을 최신 값으로 교체한다. 다른 날짜 기록은 건드리지 않는다.
-    파일이 실제로 바뀌었는지 여부를 돌려준다.
-    """
-    existing = [row for row in load_history(path) if row["date"] != date]
-    merged = existing + [
+def merge_snapshot_rows(
+    rows: list[PriceRow], date: str, items: list[Item]
+) -> list[PriceRow]:
+    """기존 이력에서 같은 날짜 행을 제거하고 새 스냅샷 행으로 교체하여 정렬한 목록을 돌려준다."""
+    existing = [row for row in rows if row["date"] != date]
+    merged: list[PriceRow] = existing + [
         {
             "date": date,
             "category": item.category,
@@ -70,6 +68,23 @@ def record_snapshot(path: Path, date: str, items: list[Item]) -> bool:
         for item in items
     ]
     merged.sort(key=lambda row: (row["date"], row["category"], row["name"]))
+    return merged
+
+
+def record_snapshot(
+    path: Path,
+    date: str,
+    items: list[Item],
+    history_rows: list[PriceRow] | None = None,
+) -> bool:
+    """그날의 스냅샷을 기록한다.
+
+    같은 날 다시 실행하면 그날 행을 최신 값으로 교체한다. 다른 날짜 기록은 건드리지 않는다.
+    history_rows가 주어지면 파일을 다시 읽지 않고 해당 이력을 사용한다.
+    파일이 실제로 바뀌었는지 여부를 돌려준다.
+    """
+    rows = history_rows if history_rows is not None else load_history(path)
+    merged = merge_snapshot_rows(rows, date, items)
 
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=FIELDNAMES, lineterminator="\n")

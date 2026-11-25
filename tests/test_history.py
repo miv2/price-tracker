@@ -6,7 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from tracker.history import HistoryError, group_by_item, load_history, record_snapshot
+from tracker.history import (
+    HistoryError,
+    group_by_item,
+    load_history,
+    merge_snapshot_rows,
+    record_snapshot,
+)
 from tracker.models import Item
 
 
@@ -85,3 +91,36 @@ def test_corrupt_history_is_never_replaced(tmp_path: Path, content: str):
     with pytest.raises(HistoryError):
         record_snapshot(path, "2026-11-14", [item("이벤트", "A", 900)])
     assert path.read_text(encoding="utf-8") == content
+
+
+def test_merge_snapshot_rows_replaces_same_date_and_sorts():
+    rows = [
+        {"date": "2026-11-13", "category": "피부", "name": "B", "sale_price": 2_000},
+        {"date": "2026-11-14", "category": "피부", "name": "A", "sale_price": 1_000},
+    ]
+    updated = merge_snapshot_rows(
+        rows,
+        "2026-11-14",
+        [item("피부", "A", 950), item("피부", "B", 1_800)],
+    )
+    assert updated == [
+        {"date": "2026-11-13", "category": "피부", "name": "B", "sale_price": 2_000},
+        {"date": "2026-11-14", "category": "피부", "name": "A", "sale_price": 950},
+        {"date": "2026-11-14", "category": "피부", "name": "B", "sale_price": 1_800},
+    ]
+
+
+def test_record_snapshot_with_preloaded_history(tmp_path: Path):
+    path = tmp_path / "history.csv"
+    preloaded = [
+        {"date": "2026-11-13", "category": "이벤트", "name": "A", "sale_price": 1_000}
+    ]
+    # preloaded 이력을 직접 넘기면 파일에 해당 이력 + 새 스냅샷이 기록된다.
+    changed = record_snapshot(
+        path, "2026-11-14", [item("이벤트", "B", 2_000)], history_rows=preloaded
+    )
+    assert changed is True
+    rows = load_history(path)
+    assert len(rows) == 2
+    assert rows[0]["name"] == "A"
+    assert rows[1]["name"] == "B"
