@@ -34,14 +34,20 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
   const CHART_PREVIEW_ROWS = 5;
   const PACKAGE_RE = /^(.*?)\s*(\d+)\s*회\s*$/;
   const CHOSUNG = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
-  const CHANGE_LABELS = { decrease: "인하", increase: "인상", new: "신규", returned: "재등장", removed: "종료" };
-  const MONTHLY_EMPTY = {
-    decrease: "이달에 관측된 가격 인하가 없습니다.",
-    increase: "이달에 관측된 가격 인상이 없습니다.",
-    new: "이달에 새로 등장한 항목이 없습니다.",
-    returned: "이달에 재등장한 항목이 없습니다.",
-    removed: "이달에 종료된 항목이 없습니다."
-  };
+  // 변동 종류의 라벨·빈 문구·표시 순서를 한곳에서 관리한다.
+  const CHANGE_KINDS = [
+    { kind: "decrease", label: "인하", empty: "이달에 관측된 가격 인하가 없습니다." },
+    { kind: "increase", label: "인상", empty: "이달에 관측된 가격 인상이 없습니다." },
+    { kind: "new", label: "신규", empty: "이달에 새로 등장한 항목이 없습니다." },
+    { kind: "returned", label: "재등장", empty: "이달에 재등장한 항목이 없습니다." },
+    { kind: "removed", label: "종료", empty: "이달에 종료된 항목이 없습니다." }
+  ];
+  const CHANGE_LABELS = {};
+  const MONTHLY_EMPTY = {};
+  CHANGE_KINDS.forEach(function (entry) {
+    CHANGE_LABELS[entry.kind] = entry.label;
+    MONTHLY_EMPTY[entry.kind] = entry.empty;
+  });
   const state = { q: "", category: "", budget: "", status: "active", changedOnly: false, favoritesOnly: false, dedupe: false, sort: "category", view: "cards", pageSize: PAGE_SIZE, vatIncluded: loadVatIncluded(storageOrNull()) };
   let displayLimit = PAGE_SIZE;
   let monthlyKind = "";
@@ -57,6 +63,13 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
 
   const $ = (id) => document.getElementById(id);
 
+  // 토글 버튼의 눌림 상태(클래스 + aria-pressed)를 한 번에 맞춘다.
+  function setPressed(element, on) {
+    if (!element) return;
+    element.classList.toggle("on", on);
+    element.setAttribute("aria-pressed", String(on));
+  }
+
   const SORT_VALUES = ["category", "recent", "discount-desc", "price-desc", "price-asc", "unit-asc", "name"];
 
   // 누적 상한형 예산 구간. 마지막 칩만 "10만원 초과"를 모은다.
@@ -65,7 +78,7 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
     { value: "under-3", label: "~3만원", max: 30000 },
     { value: "under-5", label: "~5만원", max: 50000 },
     { value: "under-10", label: "~10만원", max: 100000 },
-    { value: "over-10", label: "10만원+" }
+    { value: "over-10", label: "10만원+", min: 100000 }
   ];
   const BUDGET_VALUES = BUDGET_OPTIONS.map(function (option) { return option.value; });
 
@@ -428,12 +441,12 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
   // 예산 칩은 화면에 보이는 금액(VAT 포함 여부 반영)을 기준으로 판정한다.
   function matchesBudget(item, budgetCode) {
     if (!budgetCode) return true;
+    const option = BUDGET_OPTIONS.find(function (entry) { return entry.value === budgetCode; });
+    if (!option) return true;
     const price = displayPrice(currentPrice(item));
     if (price === null || price === undefined || !Number.isFinite(price)) return false;
-    if (budgetCode === "under-3") return price <= 30000;
-    if (budgetCode === "under-5") return price <= 50000;
-    if (budgetCode === "under-10") return price <= 100000;
-    if (budgetCode === "over-10") return price > 100000;
+    if (option.max !== undefined && price > option.max) return false;
+    if (option.min !== undefined && price <= option.min) return false;
     return true;
   }
 
@@ -654,13 +667,9 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
     $("statusFilter").value = state.status;
     $("sortFilter").value = state.sort;
     $("pageSizeFilter").value = state.pageSize === Infinity ? "all" : String(state.pageSize);
-    $("changedToggle").classList.toggle("on", state.changedOnly);
-    $("changedToggle").setAttribute("aria-pressed", String(state.changedOnly));
+    setPressed($("changedToggle"), state.changedOnly);
     const dedupeToggle = $("dedupeToggle");
-    if (dedupeToggle) {
-      dedupeToggle.classList.toggle("on", state.dedupe);
-      dedupeToggle.setAttribute("aria-pressed", String(state.dedupe));
-    }
+    if (dedupeToggle) setPressed(dedupeToggle, state.dedupe);
     $("viewToggle").textContent = state.view === "cards" ? "표로 보기" : "카드로 보기";
     $("viewToggle").setAttribute("aria-pressed", String(state.view === "table"));
     updateFavoritesUi();
@@ -810,8 +819,9 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
     } else {
       const counts = RECENT.counts || {};
       $("statChanges").textContent = fmt(RECENT.total) + "건";
-      $("statChanges").title = "인하 " + (counts.decrease || 0) + " · 인상 " + (counts.increase || 0) +
-        " · 신규 " + (counts.new || 0) + " · 재등장 " + (counts.returned || 0) + " · 종료 " + (counts.removed || 0);
+      $("statChanges").title = CHANGE_KINDS.map(function (entry) {
+        return entry.label + " " + (counts[entry.kind] || 0);
+      }).join(" · ");
     }
     if (DATA.source_url) $("sourceLink").href = DATA.source_url;
     $("chartSource").href = $("sourceLink").href;
@@ -842,15 +852,8 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
 
   function renderChangeCounts(countsBox, counts) {
     countsBox.textContent = "";
-    const kinds = [
-      ["decrease", "인하"],
-      ["increase", "인상"],
-      ["new", "신규"],
-      ["returned", "재등장"],
-      ["removed", "종료"]
-    ];
-    for (const entry of kinds) {
-      const kind = entry[0];
+    for (const entry of CHANGE_KINDS) {
+      const kind = entry.kind;
       const count = counts[kind] || 0;
       const selected = monthlyKind === kind;
       const button = document.createElement("button");
@@ -860,13 +863,13 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
       button.dataset.kind = kind;
       button.setAttribute("aria-pressed", String(selected));
       button.setAttribute("aria-controls", "monthlyList");
-      button.setAttribute("aria-label", entry[1] + " " + fmt(count) + "건" + (selected ? " · 다시 누르면 인하 금액 TOP 5 보기" : " 보기"));
+      button.setAttribute("aria-label", entry.label + " " + fmt(count) + "건" + (selected ? " · 다시 누르면 인하 금액 TOP 5 보기" : " 보기"));
       button.title = count
-        ? (selected ? "다시 누르면 인하 금액 TOP 5로 돌아갑니다" : "이달 " + entry[1] + " 항목 보기")
-        : "이달 " + entry[1] + " 항목이 없습니다";
+        ? (selected ? "다시 누르면 인하 금액 TOP 5로 돌아갑니다" : "이달 " + entry.label + " 항목 보기")
+        : "이달 " + entry.label + " 항목이 없습니다";
       const label = document.createElement("span");
       label.className = "count-label";
-      label.textContent = entry[1];
+      label.textContent = entry.label;
       const number = document.createElement("span");
       number.className = "count-num";
       number.textContent = fmt(count);
@@ -1047,35 +1050,22 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
     box.hidden = false;
   }
 
-  function buildCategoryChips() {
-    const chips = $("categoryChips");
-    const categories = Array.from(new Set(items.map((item) => item.category))).sort(function (a, b) {
-      return a.localeCompare(b, "ko");
-    });
-    function addChip(value, label) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.category = value;
-      button.textContent = label;
-      button.setAttribute("aria-pressed", "false");
-      button.addEventListener("click", function () {
-        state.category = value;
-        renderTable();
-        syncUrl(true);
-      });
-      chips.appendChild(button);
-    }
-    addChip("", "전체보기");
-    for (const category of categories) {
-      addChip(category, category || "기타");
-    }
+  function addChip(strip, dataKey, value, label, onSelect) {
+    if (!strip) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset[dataKey] = value;
+    button.textContent = label;
+    button.setAttribute("aria-pressed", "false");
+    button.addEventListener("click", onSelect);
+    strip.appendChild(button);
   }
 
-  function syncCategoryChips(scrollToActive) {
-    const strip = $("categoryChips");
+  function syncChips(strip, dataKey, current, scrollToActive) {
+    if (!strip) return;
     let active = null;
     strip.querySelectorAll("button").forEach(function (button) {
-      const on = button.dataset.category === state.category;
+      const on = button.dataset[dataKey] === current;
       button.setAttribute("aria-pressed", String(on));
       if (on) active = button;
     });
@@ -1083,40 +1073,45 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
     const stripRect = strip.getBoundingClientRect();
     const chipRect = active.getBoundingClientRect();
     strip.scrollLeft += chipRect.left - stripRect.left - (strip.clientWidth - chipRect.width) / 2;
+  }
+
+  function buildCategoryChips() {
+    const chips = $("categoryChips");
+    const categories = Array.from(new Set(items.map((item) => item.category))).sort(function (a, b) {
+      return a.localeCompare(b, "ko");
+    });
+    function selectCategory(value) {
+      return function () {
+        state.category = value;
+        renderTable();
+        syncUrl(true);
+      };
+    }
+    addChip(chips, "category", "", "전체보기", selectCategory(""));
+    for (const category of categories) {
+      addChip(chips, "category", category, category || "기타", selectCategory(category));
+    }
+  }
+
+  function syncCategoryChips(scrollToActive) {
+    syncChips($("categoryChips"), "category", state.category, scrollToActive);
   }
 
   function buildBudgetChips() {
     const strip = $("budgetChips");
     if (!strip) return;
     BUDGET_OPTIONS.forEach(function (option) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.budget = option.value;
-      button.textContent = option.label;
-      button.setAttribute("aria-pressed", "false");
-      button.addEventListener("click", function () {
+      addChip(strip, "budget", option.value, option.label, function () {
         state.budget = option.value;
         renderTable();
         updateFilterDot();
         syncUrl(true);
       });
-      strip.appendChild(button);
     });
   }
 
   function syncBudgetChips(scrollToActive) {
-    const strip = $("budgetChips");
-    if (!strip) return;
-    let active = null;
-    strip.querySelectorAll("button").forEach(function (button) {
-      const on = button.dataset.budget === state.budget;
-      button.setAttribute("aria-pressed", String(on));
-      if (on) active = button;
-    });
-    if (!scrollToActive || !active) return;
-    const stripRect = strip.getBoundingClientRect();
-    const chipRect = active.getBoundingClientRect();
-    strip.scrollLeft += chipRect.left - stripRect.left - (strip.clientWidth - chipRect.width) / 2;
+    syncChips($("budgetChips"), "budget", state.budget, scrollToActive);
   }
 
   function matches(item) {
@@ -1184,6 +1179,14 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
     return cell;
   }
 
+  function makeBadge(text, className, title) {
+    const node = document.createElement("span");
+    node.className = className;
+    node.textContent = text;
+    if (title) node.title = title;
+    return node;
+  }
+
   function renderRow(item) {
     const tr = document.createElement("tr");
     tr.className = "row";
@@ -1203,17 +1206,14 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
     name.textContent = item.name;
     nameCell.appendChild(name);
     if (item.active && item.returned) {
-      const badge = document.createElement("span");
-      badge.className = "badge returned";
-      badge.textContent = "재등장 · " + mmdd(item.returned.date);
-      badge.title = returnedPriceText(item.returned);
-      nameCell.appendChild(badge);
+      nameCell.appendChild(makeBadge(
+        "재등장 · " + mmdd(item.returned.date),
+        "badge returned",
+        returnedPriceText(item.returned)
+      ));
     }
     if (!item.active) {
-      const badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = "종료";
-      nameCell.appendChild(badge);
+      nameCell.appendChild(makeBadge("종료", "badge"));
     }
 
     const priceCell = td(displayWon(currentPrice(item)), "num price");
@@ -1229,24 +1229,14 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
     const isAtl = hasRange && item.points.length >= 2 && cur <= atl;
 
     if (isAtl) {
-      const atlBadge = document.createElement("span");
-      atlBadge.className = "badge low";
-      atlBadge.textContent = "역대 최저";
-      atlBadge.title = "수집 이래 가장 낮은 가격입니다.";
-      priceCell.appendChild(atlBadge);
+      priceCell.appendChild(makeBadge("역대 최저", "badge low", "수집 이래 가장 낮은 가격입니다."));
     } else if (isLow30(item)) {
-      const lowBadge = document.createElement("span");
-      lowBadge.className = "badge low";
-      lowBadge.textContent = "30일 최저";
-      lowBadge.title = "최근 30일 중 가장 낮은 가격입니다.";
-      priceCell.appendChild(lowBadge);
+      priceCell.appendChild(makeBadge("30일 최저", "badge low", "최근 30일 중 가장 낮은 가격입니다."));
     }
 
     const rate = item.discount_rate !== undefined ? item.discount_rate : discountRate(item);
     if (rate !== null && rate > 0) {
-      const rateBadge = document.createElement("span");
-      rateBadge.className = "badge";
-      rateBadge.textContent = rate + "% 할인";
+      const rateBadge = makeBadge(rate + "% 할인", "badge");
       rateBadge.style.color = "var(--down)";
       rateBadge.style.borderColor = "rgba(200, 51, 104, .3)";
       priceCell.appendChild(rateBadge);
@@ -1254,10 +1244,7 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
 
     const unitText = unitPriceText(item);
     if (unitText) {
-      const unit = document.createElement("span");
-      unit.className = "unit-price";
-      unit.textContent = unitText;
-      priceCell.appendChild(unit);
+      priceCell.appendChild(makeBadge(unitText, "unit-price"));
     }
 
     const change = latestChange(item);
@@ -1366,23 +1353,20 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
         line.appendChild(top);
       }
       if (item.active && item.returned) {
-        const returned = document.createElement("span");
-        returned.className = "event-extra returned";
-        returned.textContent = "재등장 · " + mmdd(item.returned.date) + " · " + returnedPriceText(item.returned);
-        line.appendChild(returned);
+        line.appendChild(makeBadge(
+          "재등장 · " + mmdd(item.returned.date) + " · " + returnedPriceText(item.returned),
+          "event-extra returned"
+        ));
       }
       if (!item.active || isLow30(item)) {
-        const extra = document.createElement("span");
-        extra.className = "event-extra";
-        extra.textContent = item.active ? "30일 최저" : "종료된 이벤트 · 마지막 확인가";
-        line.appendChild(extra);
+        line.appendChild(makeBadge(
+          item.active ? "30일 최저" : "종료된 이벤트 · 마지막 확인가",
+          "event-extra"
+        ));
       }
       const unitText = unitPriceText(item);
       if (unitText) {
-        const unit = document.createElement("span");
-        unit.className = "event-extra unit";
-        unit.textContent = unitText;
-        line.appendChild(unit);
+        line.appendChild(makeBadge(unitText, "event-extra unit"));
       }
       line.addEventListener("click", function () { openChart(item); });
       lines.push(line);
@@ -1419,10 +1403,7 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
       foot.className = "event-compact-foot";
       const rate = discountRate(entries[0]);
       if (rate !== null) {
-        const badge = document.createElement("span");
-        badge.className = "event-compact-rate";
-        badge.textContent = rate + "% 할인";
-        foot.appendChild(badge);
+        foot.appendChild(makeBadge(rate + "% 할인", "event-compact-rate"));
       }
       foot.appendChild(sparkline(entries[0]));
       body.appendChild(foot);
@@ -1443,15 +1424,19 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
     return result;
   }
 
+  function allCategoriesExpanded() {
+    const categories = expandableCategories();
+    return categories.length > 0 && categories.every(function (category) {
+      return expandedCategories.has(category);
+    });
+  }
+
   function updateExpandAllButton() {
     const button = $("expandAllToggle");
     const visible = state.view === "cards" && state.sort === "category";
     button.hidden = !visible;
     if (!visible) return;
-    const categories = expandableCategories();
-    const expanded = categories.length > 0 && categories.every(function (category) {
-      return expandedCategories.has(category);
-    });
+    const expanded = allCategoriesExpanded();
     button.textContent = expanded ? "전체 접기" : "전체 펼치기";
     button.setAttribute("aria-pressed", String(expanded));
   }
@@ -2067,13 +2052,8 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
     $("q").value = "";
     $("statusFilter").value = "active";
     $("sortFilter").value = "category";
-    $("changedToggle").classList.remove("on");
-    $("changedToggle").setAttribute("aria-pressed", "false");
-    const dedupeToggle = $("dedupeToggle");
-    if (dedupeToggle) {
-      dedupeToggle.classList.remove("on");
-      dedupeToggle.setAttribute("aria-pressed", "false");
-    }
+    setPressed($("changedToggle"), false);
+    setPressed($("dedupeToggle"), false);
     syncBudgetChips();
     updateFavoritesUi();
     updateFilterDot();
@@ -2103,8 +2083,7 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
     const count = favorites.size;
     $("favoritesCount").textContent = String(count);
     toggle.hidden = count === 0 && !state.favoritesOnly;
-    toggle.classList.toggle("on", state.favoritesOnly);
-    toggle.setAttribute("aria-pressed", String(state.favoritesOnly));
+    setPressed(toggle, state.favoritesOnly);
     const star = $("chartFav");
     if (!star) return;
     const saved = openItemKey ? favorites.has(openItemKey) : false;
@@ -2118,8 +2097,7 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
   function renderVatState() {
     const toggle = $("vatToggle");
     if (toggle) {
-      toggle.classList.toggle("on", state.vatIncluded);
-      toggle.setAttribute("aria-pressed", String(state.vatIncluded));
+      setPressed(toggle, state.vatIncluded);
       toggle.title = state.vatIncluded
         ? "부가세 포함 결제 예상가로 표시 중입니다. 눌러서 VAT 별도로 전환합니다"
         : "부가세 10%를 더한 결제 예상가로 표시합니다";
@@ -2373,8 +2351,7 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
   });
   $("changedToggle").addEventListener("click", function () {
     state.changedOnly = !state.changedOnly;
-    this.classList.toggle("on", state.changedOnly);
-    this.setAttribute("aria-pressed", String(state.changedOnly));
+    setPressed(this, state.changedOnly);
     renderTable();
     updateFilterDot();
     syncUrl(true);
@@ -2383,8 +2360,7 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
   if (dedupeToggle) {
     dedupeToggle.addEventListener("click", function () {
       state.dedupe = !state.dedupe;
-      this.classList.toggle("on", state.dedupe);
-      this.setAttribute("aria-pressed", String(state.dedupe));
+      setPressed(this, state.dedupe);
       renderTable();
       updateFilterDot();
       syncUrl(true);
@@ -2409,10 +2385,7 @@ const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
   });
   $("expandAllToggle").addEventListener("click", function () {
     const categories = expandableCategories();
-    const expanded = categories.length > 0 && categories.every(function (category) {
-      return expandedCategories.has(category);
-    });
-    if (expanded) expandedCategories.clear();
+    if (allCategoriesExpanded()) expandedCategories.clear();
     else categories.forEach(function (category) { expandedCategories.add(category); });
     renderTable(false);
   });
