@@ -53,14 +53,10 @@ def load_history(path: Path) -> list[PriceRow]:
     return rows
 
 
-def record_snapshot(path: Path, date: str, items: list[Item]) -> bool:
-    """그날의 스냅샷을 기록한다.
-
-    같은 날 다시 실행하면 그날 행을 최신 값으로 교체한다. 다른 날짜 기록은 건드리지 않는다.
-    파일이 실제로 바뀌었는지 여부를 돌려준다.
-    """
-    existing = [row for row in load_history(path) if row["date"] != date]
-    merged = existing + [
+def merge_snapshot(rows: list[PriceRow], date: str, items: list[Item]) -> list[PriceRow]:
+    """기존 이력에서 해당 날짜 행을 새 스냅샷으로 교체한 목록을 만든다."""
+    merged = [row for row in rows if row["date"] != date]
+    merged.extend(
         {
             "date": date,
             "category": item.category,
@@ -68,8 +64,23 @@ def record_snapshot(path: Path, date: str, items: list[Item]) -> bool:
             "sale_price": item.sale_price,
         }
         for item in items
-    ]
+    )
     merged.sort(key=lambda row: (row["date"], row["category"], row["name"]))
+    return merged
+
+
+def record_snapshot(
+    path: Path,
+    date: str,
+    items: list[Item],
+    rows: list[PriceRow] | None = None,
+) -> tuple[bool, list[PriceRow]]:
+    """그날의 스냅샷을 기록하고 (파일 변경 여부, 갱신된 이력)을 돌려준다.
+
+    같은 날 다시 실행하면 그날 행을 최신 값으로 교체한다. 다른 날짜 기록은 건드리지 않는다.
+    ``rows``를 넘기면 이미 읽어 둔 이력을 다시 읽지 않는다.
+    """
+    merged = merge_snapshot(rows if rows is not None else load_history(path), date, items)
 
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=FIELDNAMES, lineterminator="\n")
@@ -80,12 +91,12 @@ def record_snapshot(path: Path, date: str, items: list[Item]) -> bool:
     if path.exists():
         try:
             if path.read_text(encoding="utf-8-sig") == text:
-                return False
+                return False, merged
         except OSError:
             pass
     # utf-8-sig: 엑셀에서 열어도 한글이 깨지지 않는다.
     atomic_write_text(path, "\ufeff" + text)
-    return True
+    return True, merged
 
 
 def group_by_item(rows: list[PriceRow]) -> dict[tuple[str, str], list[tuple[str, int]]]:

@@ -9,18 +9,8 @@ const assert = require("node:assert/strict");
 
 const app = require("../tracker/templates/app.js");
 
-const DEFAULT_STATE = {
-  q: "",
-  category: "",
-  budget: "",
-  status: "active",
-  changedOnly: false,
-  favoritesOnly: false,
-  dedupe: false,
-  sort: "category",
-  view: "cards",
-  pageSize: app.PAGE_SIZE
-};
+// 기본값은 app.js의 defaultState()에서 가져와 테스트와 화면이 어긋나지 않게 한다.
+const DEFAULT_STATE = app.defaultState();
 
 function resetState(overrides) {
   Object.assign(app.state, DEFAULT_STATE, overrides || {});

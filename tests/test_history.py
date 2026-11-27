@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from tracker.history import HistoryError, group_by_item, load_history, record_snapshot
-from tracker.models import Item
+from tracker.models import Item, item_from_row
 
 
 def item(category: str, name: str, sale: int) -> Item:
@@ -16,7 +16,7 @@ def item(category: str, name: str, sale: int) -> Item:
 
 def test_record_snapshot_writes_rows(tmp_path: Path):
     path = tmp_path / "history.csv"
-    assert record_snapshot(path, "2026-11-13", [item("이벤트", "A", 1_000)]) is True
+    assert record_snapshot(path, "2026-11-13", [item("이벤트", "A", 1_000)])[0] is True
 
     rows = load_history(path)
     assert rows == [
@@ -57,7 +57,31 @@ def test_handles_commas_and_quotes_in_names(tmp_path: Path):
 def test_unchanged_write_returns_false(tmp_path: Path):
     path = tmp_path / "history.csv"
     record_snapshot(path, "2026-11-13", [item("이벤트", "A", 1_000)])
-    assert record_snapshot(path, "2026-11-13", [item("이벤트", "A", 1_000)]) is False
+    assert record_snapshot(path, "2026-11-13", [item("이벤트", "A", 1_000)])[0] is False
+
+
+def test_record_snapshot_reuses_loaded_rows(tmp_path: Path):
+    path = tmp_path / "history.csv"
+    rows = [
+        {"date": "2026-11-13", "category": "이벤트", "name": "A", "sale_price": 1_000}
+    ]
+    changed, merged = record_snapshot(
+        path, "2026-11-14", [item("이벤트", "A", 900)], rows=rows
+    )
+
+    assert changed is True
+    assert merged == load_history(path)
+    assert [row["sale_price"] for row in merged] == [1_000, 900]
+
+
+def test_item_from_row_builds_item_without_list_price():
+    row = {
+        "date": "2026-11-13",
+        "category": "이벤트",
+        "name": "A",
+        "sale_price": 1_000,
+    }
+    assert item_from_row(row) == Item("이벤트", "A", None, 1_000)
 
 
 def test_group_by_item_sorts_and_dedupes_dates():

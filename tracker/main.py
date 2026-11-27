@@ -13,7 +13,7 @@ from .compare import ChangeSet, detect_changes
 from .config import Config, ConfigError, load_config
 from .graph import write_graph
 from .history import HistoryError, load_history, record_snapshot
-from .models import Item, PriceRow
+from .models import Item, PriceRow, item_from_row
 from .prices import PricesError, load_event_period, load_prices, save_prices
 from .report import build_entry, set_date_entry, summary_line
 from .scrape import (
@@ -122,7 +122,7 @@ def _changes_for_run(
         if prior_dates:
             prior_date = max(prior_dates)
             prior_items = [
-                Item(row["category"], row["name"], None, row["sale_price"])
+                item_from_row(row)
                 for row in history_rows if row["date"] == prior_date
             ]
             changes = detect_changes(prior_items, items, last_known)
@@ -239,7 +239,9 @@ def run(args: argparse.Namespace) -> int:
         event_period=event_period,
     )
 
-    history_changed = record_snapshot(paths.history, date, snapshot)
+    history_changed, history_rows = record_snapshot(
+        paths.history, date, snapshot, rows=history_rows
+    )
     entry = (
         build_entry(changes, date, bulk_threshold=config.bulk_change_threshold)
         if not first_run and not changes.is_empty else None
@@ -250,7 +252,7 @@ def run(args: argparse.Namespace) -> int:
 
     write_graph(
         paths.index,
-        load_history(paths.history),
+        history_rows,
         snapshot,
         config.source_url,
         repo_url=config.repo_url,

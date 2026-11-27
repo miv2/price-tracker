@@ -52,7 +52,25 @@ const DATA = (function () {
     returned: "이달에 재등장한 항목이 없습니다.",
     removed: "이달에 종료된 항목이 없습니다."
   };
-  const state = { q: "", category: "", budget: "", status: "active", changedOnly: false, favoritesOnly: false, dedupe: false, sort: "category", view: "cards", pageSize: PAGE_SIZE, vatIncluded: loadVatIncluded(storageOrNull()) };
+  // 필터·정렬 기본값. URL 상태와 테스트도 이 함수를 써서 기본값이 어긋나지 않게 한다.
+  function defaultState() {
+    return {
+      q: "",
+      category: "",
+      budget: "",
+      status: "active",
+      changedOnly: false,
+      favoritesOnly: false,
+      dedupe: false,
+      sort: "category",
+      view: "cards",
+      pageSize: PAGE_SIZE
+    };
+  }
+
+  const state = Object.assign(defaultState(), {
+    vatIncluded: loadVatIncluded(storageOrNull())
+  });
   let displayLimit = PAGE_SIZE;
   let monthlyKind = "";
   let openItemKey = "";
@@ -596,18 +614,7 @@ const DATA = (function () {
   }
 
   function parseUrlState(search) {
-    const next = {
-      q: "",
-      category: "",
-      budget: "",
-      status: "active",
-      changedOnly: false,
-      favoritesOnly: false,
-      dedupe: false,
-      sort: "category",
-      view: "cards",
-      pageSize: PAGE_SIZE
-    };
+    const next = defaultState();
     const params = new URLSearchParams(search || "");
     const q = params.get("q");
     if (q) next.q = q;
@@ -2352,6 +2359,7 @@ const DATA = (function () {
       module.exports = {
         DATA,
         PAGE_SIZE,
+        defaultState,
         state,
         items,
         favorites,

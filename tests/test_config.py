@@ -22,6 +22,11 @@ def test_missing_file_uses_defaults(tmp_path: Path):
     assert config.source_url == DEFAULT_SOURCE_URL
 
 
+def test_empty_object_uses_same_defaults(tmp_path: Path):
+    path = write_config(tmp_path, {})
+    assert load_config(path) == Config()
+
+
 def test_reads_all_options(tmp_path: Path):
     path = write_config(
         tmp_path,

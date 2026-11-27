@@ -40,6 +40,8 @@ PWA_STATIC_FILES = (
     "icons/icon-512.png",
     "icons/icon-maskable-512.png",
     "icons/apple-touch-icon.png",
+    "assets/first-visit-banner.jpg",
+    "assets/monthly-banner.jpg",
 )
 
 
@@ -142,6 +144,20 @@ def write_assets(target_dir: Path, assets: dict[str, str]) -> None:
         atomic_write_text(target, text)
 
 
+def precache_urls(version: str, data_version: str = "") -> list[str]:
+    """서비스 워커가 첫 설치에서 미리 받을 주소 목록을 만든다.
+
+    자산 이름은 ``ASSET_NAMES``·``PWA_STATIC_FILES`` 한 곳에서만 관리한다.
+    """
+    return [
+        "./",
+        "./index.html",
+        *[f"./{ASSET_DIR_NAME}/{name}?v={version}" for name in ASSET_NAMES],
+        f"./{ASSET_DIR_NAME}/{DATA_JS_NAME}?v={data_version or '0'}",
+        *[f"./{name}" for name in PWA_STATIC_FILES],
+    ]
+
+
 def render_service_worker(
     template_dir: Path = TEMPLATE_DIR,
     version: str = "",
@@ -156,15 +172,7 @@ def render_service_worker(
     template = (template_dir / SW_NAME).read_text(encoding="utf-8")
     if not version:
         version = asset_version(load_assets(template_dir))
-    precache = [
-        "./",
-        "./index.html",
-        f"./assets/style.css?v={version}",
-        f"./assets/app.js?v={version}",
-        f"./assets/vendor/chart.umd.min.js?v={version}",
-        f"./assets/data.js?v={data_version or '0'}",
-        *[f"./{name}" for name in PWA_STATIC_FILES],
-    ]
+    precache = precache_urls(version, data_version)
     cache_version = hashlib.sha256(f"{version}|{data_version}".encode("utf-8")).hexdigest()[:10]
     return (
         template.replace(SW_CACHE_PLACEHOLDER, cache_version)

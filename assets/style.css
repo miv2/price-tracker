@@ -109,8 +109,6 @@ header.hero {
 .brand { color: var(--text); font-size: 27px; font-weight: 900; letter-spacing: -.065em; line-height: 1; }
 .brand .amp { color: var(--teal); }
 .brand small { margin-left: 10px; font-size: 13px; font-weight: 700; letter-spacing: -.03em; vertical-align: 3px; }
-.hero-note { color: var(--muted); font-size: 12px; font-weight: 600; }
-.hero-note::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--teal); vertical-align: 1px; }
 .eyebrow {
   margin: 0 0 2px;
   color: var(--text);
@@ -965,7 +963,6 @@ dialog::backdrop { background: rgba(12, 16, 24, .55); backdrop-filter: blur(2px)
   .hero-top { margin-bottom: 12px; padding: 12px 0; }
   .brand { font-size: 22px; }
   .brand small { font-size: 11px; margin-left: 5px; vertical-align: 2px; }
-  .hero-note { font-size: 11px; }
   .eyebrow { font-size: 22px; }
   h1 { font-size: 19px; }
   .sub { font-size: 12.5px; margin-top: 6px; line-height: 1.5; }
@@ -1174,7 +1171,6 @@ dialog::backdrop { background: rgba(12, 16, 24, .55); backdrop-filter: blur(2px)
   .event-list-price { font-size: 14px; }
   .event-name { font-size: 13px; }
   .recent-item .kind { min-width: 34px; text-align: center; }
-  .hero-note { max-width: 116px; text-align: right; line-height: 1.35; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

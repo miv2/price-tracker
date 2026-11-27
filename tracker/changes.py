@@ -11,7 +11,7 @@ from collections import defaultdict
 from typing import Any
 
 from .compare import detect_changes
-from .models import Item, PriceRow
+from .models import Item, PriceRow, item_from_row
 
 Payload = dict[str, Any]
 
@@ -28,7 +28,7 @@ def build_history_changes(rows: list[PriceRow], items: list[Payload]) -> list[Pa
     """수집일 사이 변동을 계산한다. 수집하지 않은 날은 종료로 해석하지 않는다."""
     snapshots: dict[str, dict[tuple[str, str], Item]] = defaultdict(dict)
     for row in rows:
-        item = Item(row["category"], row["name"], None, row["sale_price"])
+        item = item_from_row(row)
         snapshots[row["date"]][item.key] = item
     index = {(entry["category"], entry["name"]): i for i, entry in enumerate(items)}
     previous: dict[tuple[str, str], Item] | None = None

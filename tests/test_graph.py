@@ -335,6 +335,8 @@ def test_render_service_worker_fills_placeholders():
         "./icons/icon-192.png",
         "./icons/icon-maskable-512.png",
         "./icons/apple-touch-icon.png",
+        "./assets/first-visit-banner.jpg",
+        "./assets/monthly-banner.jpg",
     ):
         assert url in sw
 

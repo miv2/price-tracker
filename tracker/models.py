@@ -43,3 +43,11 @@ class Item:
             "first_seen": self.first_seen,
             "last_seen": self.last_seen,
         }
+
+
+def item_from_row(row: PriceRow) -> Item:
+    """history.csv의 한 행을 가격 비교용 Item으로 바꾼다.
+
+    이력에는 목록가가 없으므로 ``list_price``는 비워 둔다.
+    """
+    return Item(row["category"], row["name"], None, row["sale_price"])
