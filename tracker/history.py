@@ -1,4 +1,7 @@
-"""history.csv에 날짜별 할인가를 누적한다."""
+"""history.csv에 날짜별 할인가를 누적한다.
+
+같은 날짜를 다시 기록하면 기존 행을 새 스냅샷으로 교체하고 정렬한다.
+"""
 
 from __future__ import annotations
 
