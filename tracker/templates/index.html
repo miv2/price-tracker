@@ -75,10 +75,10 @@
     </div>
     <div class="summary-content" id="summaryContent">
       <section class="recent summary-panel active" id="recentPanel" role="tabpanel" aria-labelledby="tabRecent">
-        <details id="recentDetails" open>
+        <details open>
           <summary class="recent-summary">
             <div class="recent-head-left">
-              <h2 id="recentTitle">최근 변동</h2>
+              <h2>최근 변동</h2>
               <p class="small" id="recentSub">불러오는 중…</p>
             </div>
           </summary>
@@ -91,7 +91,7 @@
           <h2 id="monthlyTitle">월별 가격 요약</h2>
           <select id="monthFilter" aria-label="요약할 월 선택"></select>
         </div>
-        <div id="monthlyBody" aria-live="polite">
+        <div aria-live="polite">
           <p class="small" id="monthlySub"></p>
           <div class="recent-counts" id="monthlyCounts" role="group" aria-label="월별 변동 종류 필터"></div>
           <details id="monthlyDetails">
@@ -143,7 +143,7 @@
       예산
     </span>
   </div>
-  <div class="toolbar-wrapper" id="toolbarWrapper">
+  <div class="toolbar-wrapper">
     <div class="toolbar" role="group" aria-labelledby="catalogTitle">
       <form class="search" id="searchForm" role="search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -200,19 +200,19 @@
 
   <div class="event-grid" id="eventGrid" aria-label="시술별 이벤트 가격"></div>
   <div class="table-wrap" id="tableWrap" hidden>
-    <table role="table">
+    <table>
       <caption>시술별 이벤트 가격과 추이</caption>
-      <thead role="rowgroup">
-        <tr role="row">
-          <th scope="col" role="columnheader">카테고리</th>
-          <th scope="col" role="columnheader">시술명</th>
-          <th scope="col" role="columnheader" class="num">현재가</th>
-          <th scope="col" role="columnheader" class="num">최근 변동</th>
-          <th scope="col" role="columnheader" class="num">최저 / 최고</th>
-          <th scope="col" role="columnheader">추이</th>
+      <thead>
+        <tr>
+          <th scope="col">카테고리</th>
+          <th scope="col">시술명</th>
+          <th scope="col" class="num">현재가</th>
+          <th scope="col" class="num">최근 변동</th>
+          <th scope="col" class="num">최저 / 최고</th>
+          <th scope="col">추이</th>
         </tr>
       </thead>
-      <tbody id="rows" role="rowgroup"></tbody>
+      <tbody id="rows"></tbody>
     </table>
   </div>
   <div class="empty" id="empty" hidden>

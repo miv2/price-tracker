@@ -25,7 +25,6 @@ from .util import atomic_write_text
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 TEMPLATE_PATH = TEMPLATE_DIR / "index.html"
-PAYLOAD_PLACEHOLDER = "__PAYLOAD__"
 ASSET_VERSION_PLACEHOLDER = "__ASSET_VERSION__"
 DATA_VERSION_PLACEHOLDER = "__DATA_VERSION__"
 SW_CACHE_PLACEHOLDER = "__CACHE_VERSION__"
@@ -135,13 +134,32 @@ def asset_version(assets: dict[str, str]) -> str:
     return digest.hexdigest()[:10]
 
 
+def _resolve_asset_version(template_dir: Path, version: str) -> str:
+    """넘겨받은 버전이 없으면 템플릿 내용으로 계산한다. 템플릿이 없으면 0."""
+    if version:
+        return version
+    try:
+        return asset_version(load_assets(template_dir))
+    except OSError:
+        return "0"
+
+
+def _write_if_changed(path: Path, text: str) -> bool:
+    """내용이 같으면 다시 쓰지 않는다. 실제로 썼는지 돌려준다."""
+    if path.exists():
+        try:
+            if path.read_text(encoding="utf-8") == text:
+                return False
+        except OSError:
+            pass
+    atomic_write_text(path, text)
+    return True
+
+
 def write_assets(target_dir: Path, assets: dict[str, str]) -> None:
     """정적 자산을 대상 폴더에 쓴다. 내용이 같으면 건드리지 않는다."""
     for name, text in assets.items():
-        target = target_dir / name
-        if target.exists() and target.read_text(encoding="utf-8") == text:
-            continue
-        atomic_write_text(target, text)
+        _write_if_changed(target_dir / name, text)
 
 
 def precache_urls(version: str, data_version: str = "") -> list[str]:
@@ -170,8 +188,7 @@ def render_service_worker(
     화면에 필요한 자산을 모두 미리 받아 둔다.
     """
     template = (template_dir / SW_NAME).read_text(encoding="utf-8")
-    if not version:
-        version = asset_version(load_assets(template_dir))
+    version = _resolve_asset_version(template_dir, version)
     precache = precache_urls(version, data_version)
     cache_version = hashlib.sha256(f"{version}|{data_version}".encode("utf-8")).hexdigest()[:10]
     return (
@@ -191,27 +208,16 @@ def serialize_payload(payload: Payload) -> str:
 
 
 def render_html(
-    payload: Payload,
     template_path: Path = TEMPLATE_PATH,
     version: str = "",
     data_version: str = "",
 ) -> str:
     template = template_path.read_text(encoding="utf-8")
-
-    if not version:
-        try:
-            version = asset_version(load_assets(template_path.parent))
-        except OSError:
-            version = "0"
+    version = _resolve_asset_version(template_path.parent, version)
 
     html = template.replace(ASSET_VERSION_PLACEHOLDER, version)
     if DATA_VERSION_PLACEHOLDER in html:
         html = html.replace(DATA_VERSION_PLACEHOLDER, data_version or "0")
-
-    # 하위 호환: 템플릿에 여전히 __PAYLOAD__ 자리가 남아있는 경우 인라인 치환
-    if PAYLOAD_PLACEHOLDER in html:
-        html = html.replace(PAYLOAD_PLACEHOLDER, serialize_payload(payload))
-
     return html
 
 
@@ -223,9 +229,7 @@ def write_data(target_dir: Path, payload: Payload) -> str:
     """
     data_js = f"window.__PRICE_DATA__={serialize_payload(payload)};"
     data_version = hashlib.sha256(data_js.encode("utf-8")).hexdigest()[:10]
-    target = target_dir / DATA_JS_NAME
-    if not target.exists() or target.read_text(encoding="utf-8") != data_js:
-        atomic_write_text(target, data_js)
+    _write_if_changed(target_dir / DATA_JS_NAME, data_js)
     return data_version
 
 
@@ -246,7 +250,7 @@ def write_graph(
     data_version = write_data(assets_dir, payload)
 
     version = asset_version(assets)
-    atomic_write_text(path, render_html(payload, template_path, version, data_version))
+    atomic_write_text(path, render_html(template_path, version, data_version))
     atomic_write_text(
         path.parent / SW_NAME,
         render_service_worker(template_path.parent, version, data_version),

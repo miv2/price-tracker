@@ -1,17 +1,6 @@
-const DATA = (function () {
-  if (typeof window !== "undefined" && window.__PRICE_DATA__) {
-    return window.__PRICE_DATA__;
-  }
-  if (typeof document === "undefined") return { items: [] };
-  const node = document.getElementById("payload");
-  if (!node) return { items: [] };
-  try {
-    return JSON.parse(node.textContent);
-  } catch (error) {
-    console.error("가격 데이터를 읽지 못했습니다.", error);
-    return { items: [] };
-  }
-})();
+const DATA = typeof window !== "undefined" && window.__PRICE_DATA__
+  ? window.__PRICE_DATA__
+  : { items: [] };
 
 (function () {
   "use strict";
@@ -34,6 +23,7 @@ const DATA = (function () {
   const EVENT_PERIOD = DATA.event_period || null;
   const changedIndexes = new Set((RECENT.items || []).map(function (change) { return change.index; }));
   const PAGE_SIZE = 40;
+  const EVENT_CARD_PREVIEW = 2;
   const FAVORITES_KEY = "priceTracker.favorites.v1";
   const ESTIMATE_KEY = "priceTracker.estimate.v1";
   const VAT_KEY = "priceTracker.vat.v1";
@@ -95,7 +85,7 @@ const DATA = (function () {
     { value: "under-3", label: "~3만원", max: 30000 },
     { value: "under-5", label: "~5만원", max: 50000 },
     { value: "under-10", label: "~10만원", max: 100000 },
-    { value: "over-10", label: "10만원+" }
+    { value: "over-10", label: "10만원+", min: 100000 }
   ];
   const BUDGET_VALUES = BUDGET_OPTIONS.map(function (option) { return option.value; });
 
@@ -460,12 +450,12 @@ const DATA = (function () {
   // 예산 칩은 화면에 보이는 금액(VAT 포함 여부 반영)을 기준으로 판정한다.
   function matchesBudget(item, budgetCode) {
     if (!budgetCode) return true;
+    const option = BUDGET_OPTIONS.find(function (entry) { return entry.value === budgetCode; });
+    if (!option) return true;
     const price = displayPrice(currentPrice(item));
     if (price === null || price === undefined || !Number.isFinite(price)) return false;
-    if (budgetCode === "under-3") return price <= 30000;
-    if (budgetCode === "under-5") return price <= 50000;
-    if (budgetCode === "under-10") return price <= 100000;
-    if (budgetCode === "over-10") return price > 100000;
+    if (option.max !== undefined && price > option.max) return false;
+    if (option.min !== undefined && price <= option.min) return false;
     return true;
   }
 
@@ -831,12 +821,8 @@ const DATA = (function () {
   }
 
   function renderStats() {
-    const dates = new Set();
-    for (const item of items) {
-      for (const p of item.points) dates.add(p[0]);
-    }
     $("statActive").textContent = fmt(DATA.active_count || 0) + "개";
-    $("statDays").textContent = fmt(dates.size) + "일";
+    $("statDays").textContent = fmt(DATA.days || 0) + "일";
     $("statLast").textContent = DATA.last_date ? mmdd(DATA.last_date) : "—";
     if (RECENT.baseline) {
       $("statChanges").textContent = "—";
@@ -1392,18 +1378,18 @@ const DATA = (function () {
   }
 
   function buildMoreToggle(category, lines) {
-    if (lines.length <= 2) return null;
+    if (lines.length <= EVENT_CARD_PREVIEW) return null;
     const initiallyExpanded = expandedCategories.has(category);
     const more = document.createElement("button");
     more.type = "button";
     more.className = "event-more";
     const chevron = makeSpan(initiallyExpanded ? "⌃" : "⌄", "");
-    lines.slice(2).forEach(function (line) { line.hidden = !initiallyExpanded; });
+    lines.slice(EVENT_CARD_PREVIEW).forEach(function (line) { line.hidden = !initiallyExpanded; });
     more.append(initiallyExpanded ? "접기 " : "펼치기 ", chevron);
     more.setAttribute("aria-expanded", String(initiallyExpanded));
     more.addEventListener("click", function () {
       const expanded = more.getAttribute("aria-expanded") === "true";
-      lines.slice(2).forEach(function (line) { line.hidden = expanded; });
+      lines.slice(EVENT_CARD_PREVIEW).forEach(function (line) { line.hidden = expanded; });
       if (expanded) expandedCategories.delete(category);
       else expandedCategories.add(category);
       more.setAttribute("aria-expanded", String(!expanded));
@@ -1451,7 +1437,7 @@ const DATA = (function () {
     });
     const result = [];
     counts.forEach(function (count, category) {
-      if (count > 2) result.push(category);
+      if (count > EVENT_CARD_PREVIEW) result.push(category);
     });
     return result;
   }
@@ -2356,6 +2342,7 @@ const DATA = (function () {
         unitPriceValue,
         oneSessionPrice,
         packageComparison,
+        packagePeers,
         unitPriceText,
         dedupeItems,
         duplicateRank,

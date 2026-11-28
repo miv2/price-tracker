@@ -117,7 +117,6 @@ header.hero {
   letter-spacing: -.025em;
 }
 h1 { margin: 0; font-size: clamp(18px, 1.6vw, 23px); line-height: 1.25; letter-spacing: -.055em; }
-.sub { max-width: 640px; margin: 8px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
 .stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -965,7 +964,6 @@ dialog::backdrop { background: rgba(12, 16, 24, .55); backdrop-filter: blur(2px)
   .brand small { font-size: 11px; margin-left: 5px; vertical-align: 2px; }
   .eyebrow { font-size: 22px; }
   h1 { font-size: 19px; }
-  .sub { font-size: 12.5px; margin-top: 6px; line-height: 1.5; }
   .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-top: 12px; }
   .stat { padding: 9px 6px 9px 0; }
   .stat + .stat { padding-left: 6px; }

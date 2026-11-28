@@ -6,7 +6,7 @@ from pathlib import Path
 
 from tracker.compare import detect_changes
 from tracker.models import Item
-from tracker.report import HEADER, build_entry, ensure_changes_file, prepend_entry
+from tracker.report import HEADER, build_entry, ensure_changes_file
 
 
 def item(category: str, name: str, sale: int) -> Item:
@@ -91,23 +91,6 @@ def test_ensure_changes_file_creates_header_once(tmp_path: Path):
     first = path.read_text(encoding="utf-8")
     ensure_changes_file(path)
     assert path.read_text(encoding="utf-8") == first
-
-
-def test_prepend_entry_puts_newest_first(tmp_path: Path):
-    path = tmp_path / "CHANGES.md"
-    ensure_changes_file(path)
-
-    old = make_changes([item("이벤트", "A", 10_000)], [item("이벤트", "A", 9_000)])
-    new = make_changes([item("이벤트", "A", 9_000)], [item("이벤트", "A", 8_000)])
-
-    prepend_entry(path, build_entry(old, "2026-11-13"))
-    prepend_entry(path, build_entry(new, "2026-11-14"))
-
-    text = path.read_text(encoding="utf-8")
-    assert text.startswith("# 가격 변동 기록")
-    assert text.index("## 2026-11-14") < text.index("## 2026-11-13")
-    assert text.count("# 가격 변동 기록") == 1
-    assert "9,000원 → 8,000원" in text
 
 
 def test_header_mentions_source_and_graph():

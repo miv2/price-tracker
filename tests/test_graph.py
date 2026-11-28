@@ -220,19 +220,7 @@ def test_repeated_return_uses_most_recent_price_and_unchanged_return_counts():
 
 
 def test_render_leaves_only_the_skeleton():
-    payload = build_payload(
-        [
-            {
-                "date": "2026-11-13",
-                "category": "이벤트",
-                "name": "</script><script>alert(1)</script>",
-                "sale_price": 1_000,
-            }
-        ],
-        [],
-        "https://example.com/",
-    )
-    html = render_html(payload)
+    html = render_html()
     assert "가격 추이" in html
     assert "__PAYLOAD__" not in html
     assert "__ASSET_VERSION__" not in html
@@ -255,17 +243,6 @@ def test_data_js_escapes_script_close(tmp_path: Path):
     assert "</script><script>alert(1)" not in data_js
     assert "<\\/script>" in data_js
     assert "window.__PRICE_DATA__=" in data_js
-
-
-def test_render_inlines_payload_for_legacy_template(tmp_path: Path):
-    template = tmp_path / "index.html"
-    template.write_text(
-        '<script type="application/json" id="payload">__PAYLOAD__</script>',
-        encoding="utf-8",
-    )
-    html = render_html({"items": [{"name": "</script>"}]}, template)
-    assert "__PAYLOAD__" not in html
-    assert "<\\/script>" in html
 
 
 def test_write_graph_creates_file(tmp_path: Path):

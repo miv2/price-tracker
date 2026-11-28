@@ -14,6 +14,10 @@ from .util import atomic_write_text
 FIELDNAMES = ("date", "category", "name", "sale_price")
 
 
+def _row_sort_key(row: PriceRow) -> tuple[str, str, str]:
+    return (row["date"], row["category"], row["name"])
+
+
 class HistoryError(Exception):
     """기존 이력을 안전하게 읽을 수 없을 때 발생한다."""
 
@@ -49,12 +53,12 @@ def load_history(path: Path) -> list[PriceRow]:
     except (OSError, UnicodeError, csv.Error) as exc:
         raise HistoryError(f"history.csv를 읽지 못했습니다: {path} ({exc})") from exc
 
-    rows.sort(key=lambda row: (row["date"], row["category"], row["name"]))
+    rows.sort(key=_row_sort_key)
     return rows
 
 
 def merge_snapshot(rows: list[PriceRow], date: str, items: list[Item]) -> list[PriceRow]:
-    """기존 이력에서 해당 날짜 행을 새 스냅샷으로 교체한 목록을 만든다."""
+    """기존 이력에서 해당 날짜 행을 새 스냅샷으로 교체하고 정렬한 목록을 만든다."""
     merged = [row for row in rows if row["date"] != date]
     merged.extend(
         {
@@ -65,7 +69,7 @@ def merge_snapshot(rows: list[PriceRow], date: str, items: list[Item]) -> list[P
         }
         for item in items
     )
-    merged.sort(key=lambda row: (row["date"], row["category"], row["name"]))
+    merged.sort(key=_row_sort_key)
     return merged
 
 
