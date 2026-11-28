@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
-from .compare import detect_changes
+from .compare import ChangeSet, detect_changes
 from .models import Item, PriceRow, item_from_row
 
 Payload = dict[str, Any]
@@ -22,6 +22,38 @@ KIND_ORDER = {"decrease": 0, "increase": 1, "returned": 2, "new": 3, "removed": 
 def snapshot_dates(rows: list[PriceRow]) -> list[str]:
     """이력에 등장한 수집일을 오름차순으로 돌려준다."""
     return sorted({row["date"] for row in rows})
+
+
+def changes_for_run(
+    items: list[Item],
+    previous: dict[tuple[str, str], Item] | None,
+    history_rows: list[PriceRow],
+    date: str,
+) -> ChangeSet:
+    """이번 실행에서 직전 스냅샷과 비교한 변동을 계산한다.
+
+    같은 날 재실행이면 하루 안의 재수집이 '신규/종료'로 잘못 남지 않도록
+    ``previous`` 대신 직전 수집일의 이력 스냅샷을 기준으로 삼는다.
+    """
+    last_known = {
+        (row["category"], row["name"]): row["sale_price"]
+        for row in history_rows if row["date"] < date
+    }
+    same_day = any(row["date"] == date for row in history_rows)
+    if not same_day:
+        return detect_changes(
+            list(previous.values()) if previous else None, items, last_known,
+        )
+
+    prior_dates = [row["date"] for row in history_rows if row["date"] < date]
+    if not prior_dates:
+        return ChangeSet()
+    prior_date = max(prior_dates)
+    prior_items = [
+        item_from_row(row)
+        for row in history_rows if row["date"] == prior_date
+    ]
+    return detect_changes(prior_items, items, last_known)
 
 
 def build_history_changes(rows: list[PriceRow], items: list[Payload]) -> list[Payload]:

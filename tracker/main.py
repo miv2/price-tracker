@@ -9,11 +9,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from .compare import ChangeSet, detect_changes
+from .changes import changes_for_run
+from .compare import ChangeSet
 from .config import Config, ConfigError, load_config
 from .graph import write_graph
 from .history import HistoryError, load_history, record_snapshot
-from .models import Item, PriceRow, item_from_row
+from .models import Item, PriceRow
 from .prices import PricesError, load_event_period, load_prices, save_prices
 from .report import build_entry, set_date_entry, summary_line
 from .scrape import (
@@ -95,49 +96,6 @@ def _validate_against_previous(
     validate_snapshot(items, eligible, config)
 
 
-def _changes_for_run(
-    items: list[Item],
-    previous: dict[tuple[str, str], Item] | None,
-    history_rows: list[PriceRow],
-    date: str,
-    exclude_keywords: tuple[str, ...],
-) -> ChangeSet:
-    """이번 실행의 변동을 계산한다.
-
-    같은 날 재실행이면 직전 수집일을 기준으로 삼아, 하루 안의 재수집이
-    '신규/종료'로 잘못 남지 않게 한다.
-    """
-    last_known = {
-        (row["category"], row["name"]): row["sale_price"]
-        for row in history_rows if row["date"] < date
-    }
-
-    same_day = any(row["date"] == date for row in history_rows)
-    if not same_day:
-        changes = detect_changes(
-            list(previous.values()) if previous else None, items, last_known,
-        )
-    else:
-        prior_dates = [row["date"] for row in history_rows if row["date"] < date]
-        if prior_dates:
-            prior_date = max(prior_dates)
-            prior_items = [
-                item_from_row(row)
-                for row in history_rows if row["date"] == prior_date
-            ]
-            changes = detect_changes(prior_items, items, last_known)
-        else:
-            changes = ChangeSet()
-
-    if exclude_keywords:
-        # 제외 설정을 바꿨을 때 기존 항목이 '종료'로 잘못 기록되지 않게 한다.
-        changes.removed = [
-            change for change in changes.removed
-            if not matches_exclude(change.category, change.name, exclude_keywords)
-        ]
-    return changes
-
-
 def _print_items(items: list[Item]) -> None:
     reconfigure = getattr(sys.stdout, "reconfigure", None)
     if reconfigure is not None:
@@ -189,48 +147,17 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def run(args: argparse.Namespace) -> int:
-    paths = Paths.from_root(Path(args.root), Path(args.config) if args.config else None)
-    config = load_config(paths.config)
-    date = args.today or today_str()
-
-    html = _load_html(config, args.offline_html)
-    parsed, items = _collect(config, html)
-    if parsed.event_period:
-        log.info("이벤트 기간: %s ~ %s", *parsed.event_period)
-
-    if args.list_items:
-        _print_items(items)
-        log.info("총 %d개 항목을 출력했습니다.", len(items))
-        return 0
-
-    validate_snapshot(parsed.items, None, config)
-    if not items:
-        raise DataError(
-            "제외 키워드를 적용한 뒤 남은 항목이 없습니다. config.json의 exclude_keywords를 확인하세요."
-        )
-
-    previous = load_prices(paths.prices)
-    first_run = previous is None
-    _validate_against_previous(items, previous, config)
-
-    history_rows = load_history(paths.history)
-    changes = _changes_for_run(
-        items, previous, history_rows, date, config.exclude_keywords,
-    )
-
-    log.info("기록 날짜: %s", date)
-    if first_run:
-        log.info("첫 실행입니다. 변동 요약 없이 기준 데이터만 저장합니다.")
-    else:
-        log.info("변동: %s", summary_line(changes))
-
-    if args.dry_run:
-        log.info("--dry-run: 파일을 쓰지 않고 종료합니다.")
-        return 0
-
-    snapshot = build_snapshot(items, previous, date)
-    event_period = parsed.event_period or load_event_period(paths.prices)
+def _write_outputs(
+    paths: Paths,
+    config: Config,
+    date: str,
+    snapshot: list[Item],
+    history_rows: list[PriceRow],
+    changes: ChangeSet,
+    first_run: bool,
+    event_period: tuple[str, str] | None,
+) -> None:
+    """검증된 스냅샷을 파일에 기록하고 그래프 페이지를 다시 만든다."""
     save_prices(
         paths.prices,
         snapshot,
@@ -263,6 +190,57 @@ def run(args: argparse.Namespace) -> int:
         "완료: %d개 항목 저장 · 이력 %s · 그래프 갱신",
         len(snapshot),
         "변경됨" if history_changed else "변동 없음",
+    )
+
+
+def run(args: argparse.Namespace) -> int:
+    paths = Paths.from_root(Path(args.root), Path(args.config) if args.config else None)
+    config = load_config(paths.config)
+    date = args.today or today_str()
+
+    html = _load_html(config, args.offline_html)
+    parsed, items = _collect(config, html)
+    if parsed.event_period:
+        log.info("이벤트 기간: %s ~ %s", *parsed.event_period)
+
+    if args.list_items:
+        _print_items(items)
+        log.info("총 %d개 항목을 출력했습니다.", len(items))
+        return 0
+
+    validate_snapshot(parsed.items, None, config)
+    if not items:
+        raise DataError(
+            "제외 키워드를 적용한 뒤 남은 항목이 없습니다. config.json의 exclude_keywords를 확인하세요."
+        )
+
+    previous = load_prices(paths.prices)
+    first_run = previous is None
+    _validate_against_previous(items, previous, config)
+
+    history_rows = load_history(paths.history)
+    changes = changes_for_run(items, previous, history_rows, date)
+    if config.exclude_keywords:
+        # 제외 설정을 바꿨을 때 기존 항목이 '종료'로 잘못 기록되지 않게 한다.
+        changes.removed = [
+            change for change in changes.removed
+            if not matches_exclude(change.category, change.name, config.exclude_keywords)
+        ]
+
+    log.info("기록 날짜: %s", date)
+    if first_run:
+        log.info("첫 실행입니다. 변동 요약 없이 기준 데이터만 저장합니다.")
+    else:
+        log.info("변동: %s", summary_line(changes))
+
+    if args.dry_run:
+        log.info("--dry-run: 파일을 쓰지 않고 종료합니다.")
+        return 0
+
+    snapshot = build_snapshot(items, previous, date)
+    event_period = parsed.event_period or load_event_period(paths.prices)
+    _write_outputs(
+        paths, config, date, snapshot, history_rows, changes, first_run, event_period,
     )
     return 0
 

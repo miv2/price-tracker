@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from datetime import date
 
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from .config import Config
 from .models import Item
@@ -166,6 +166,27 @@ def fetch_html(config: Config) -> str:
     raise ScrapeError(f"페이지를 가져오지 못했습니다: {last_error}") from last_error
 
 
+def _parse_box(box: Tag) -> Item | None:
+    """가격 카드 하나에서 항목을 만든다. 이름이나 가격이 없으면 None."""
+    category_node = box.select_one(SELECTOR_CATEGORY)
+    name_node = box.select_one(SELECTOR_NAME)
+    category = normalize_text(category_node.get_text(" ", strip=True)) if category_node else ""
+    name = normalize_text(name_node.get_text(" ", strip=True)) if name_node else ""
+    if not name:
+        return None
+
+    list_node = box.select_one(SELECTOR_LIST_PRICE)
+    sale_node = box.select_one(SELECTOR_SALE_PRICE)
+    list_price = parse_price(list_node.get_text(" ", strip=True) if list_node else None)
+    sale_price = parse_price(sale_node.get_text(" ", strip=True) if sale_node else None)
+    if sale_price is None:
+        sale_price = list_price
+    if sale_price is None:
+        return None
+    # 할인가만 있고 정가가 없으면 정가를 비워 둔다.
+    return Item(category=category, name=name, list_price=list_price, sale_price=sale_price)
+
+
 def parse_items(html: str) -> ParseResult:
     """HTML에서 카테고리·시술명·정가·할인가를 뽑아낸다.
 
@@ -182,26 +203,10 @@ def parse_items(html: str) -> ParseResult:
 
     seen: dict[tuple[str, str], Item] = {}
     for box in boxes:
-        category_node = box.select_one(SELECTOR_CATEGORY)
-        name_node = box.select_one(SELECTOR_NAME)
-        category = normalize_text(category_node.get_text(" ", strip=True)) if category_node else ""
-        name = normalize_text(name_node.get_text(" ", strip=True)) if name_node else ""
-
-        if not name:
+        item = _parse_box(box)
+        if item is None:
             result.skipped += 1
             continue
-
-        list_node = box.select_one(SELECTOR_LIST_PRICE)
-        sale_node = box.select_one(SELECTOR_SALE_PRICE)
-        list_price = parse_price(list_node.get_text(" ", strip=True) if list_node else None)
-        sale_price = parse_price(sale_node.get_text(" ", strip=True) if sale_node else None)
-        if sale_price is None:
-            sale_price = list_price
-        if sale_price is None:
-            result.skipped += 1
-            continue
-        # 할인가만 있고 정가가 없으면 정가를 비워 둔다.
-        item = Item(category=category, name=name, list_price=list_price, sale_price=sale_price)
 
         existing = seen.get(item.key)
         if existing is not None:

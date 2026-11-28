@@ -34,6 +34,51 @@ beforeEach(function () {
   app.favorites.clear();
 });
 
+test("readStorage()/writeStorage() - 저장소 접근과 예외를 방어한다", () => {
+  const store = new Map();
+  const fake = {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => { store.set(key, String(value)); },
+    removeItem: (key) => { store.delete(key); }
+  };
+
+  app.writeStorage(fake, "key", "value");
+  assert.equal(app.readStorage(fake, "key"), "value");
+  app.writeStorage(fake, "key", null);
+  assert.equal(app.readStorage(fake, "key"), null);
+  assert.equal(app.readStorage(null, "key"), null);
+
+  const broken = {
+    getItem: () => { throw new Error("blocked"); },
+    setItem: () => { throw new Error("blocked"); }
+  };
+  assert.equal(app.readStorage(broken, "key"), null);
+  assert.doesNotThrow(() => app.writeStorage(broken, "key", "value"));
+});
+
+test("setTogglePressed() - on 클래스와 aria 속성을 함께 갱신한다", () => {
+  const classes = new Set();
+  const attrs = {};
+  const fake = {
+    classList: {
+      toggle: (name, active) => {
+        if (active) classes.add(name);
+        else classes.delete(name);
+      }
+    },
+    setAttribute: (name, value) => { attrs[name] = value; }
+  };
+
+  app.setTogglePressed(fake, true);
+  assert.equal(classes.has("on"), true);
+  assert.equal(attrs["aria-pressed"], "true");
+
+  app.setTogglePressed(fake, false, "aria-expanded");
+  assert.equal(classes.has("on"), false);
+  assert.equal(attrs["aria-expanded"], "false");
+  assert.doesNotThrow(() => app.setTogglePressed(null, true));
+});
+
 test("returnedPriceText() - 재등장 전후 가격과 동일·인하·인상을 표시한다", () => {
   assert.equal(app.returnedPriceText({ prev: 10000, price: 10000, delta: 0 }), "10,000원 → 10,000원 (종료 전과 동일)");
   assert.equal(app.returnedPriceText({ prev: 10000, price: 8000, delta: -2000 }), "10,000원 → 8,000원 (종료 전 대비 −2,000원)");
